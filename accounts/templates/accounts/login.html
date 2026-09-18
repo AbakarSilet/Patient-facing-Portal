@@ -1,0 +1,8 @@
+<h1>Connexion</h1>
+{% if error %}<p style="color:red">{{ error }}</p>{% endif %}
+<form method="post">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <button type="submit">Se connecter</button>
+  <p><a href="{% url 'forgot_password' %}">Mot de passe oublié ?</a></p>
+</form>

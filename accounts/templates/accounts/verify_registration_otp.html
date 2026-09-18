@@ -1,0 +1,127 @@
+{# accounts/templates/accounts/verify_registration_otp.html #}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vérification du code — Portail Patient</title>
+    <style>
+        body {
+            font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+            background: #f2f4f6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .card {
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            padding: 32px;
+            width: 100%;
+            max-width: 380px;
+        }
+        h1 {
+            font-size: 20px;
+            color: #12263a;
+            margin: 0 0 8px;
+        }
+        p.subtitle {
+            font-size: 14px;
+            color: #555;
+            margin: 0 0 24px;
+            line-height: 1.5;
+        }
+        p.subtitle strong {
+            color: #12263a;
+        }
+        label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #12263a;
+            margin-bottom: 6px;
+        }
+        input[type="text"] {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 12px;
+            font-size: 20px;
+            letter-spacing: 6px;
+            text-align: center;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            margin-bottom: 16px;
+        }
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #2a9d8f;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #12263a;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #1c3654;
+        }
+        .error {
+            background: #fce9d8;
+            color: #7a3b00;
+            padding: 10px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            margin-bottom: 16px;
+        }
+        .expiry-note {
+            font-size: 12px;
+            color: #777;
+            text-align: center;
+            margin-top: 16px;
+        }
+        .restart-link {
+            font-size: 12px;
+            text-align: center;
+            margin-top: 8px;
+        }
+        .restart-link a {
+            color: #2a9d8f;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>Vérification du code</h1>
+        <p class="subtitle">
+            Un code à 6 chiffres a été envoyé par SMS au
+            <strong>{{ phone_masked }}</strong>.
+            Saisis-le ci-dessous pour finaliser ton inscription.
+        </p>
+
+        {% if error %}
+            <div class="error">{{ error }}</div>
+        {% endif %}
+
+        <form method="post" novalidate>
+            {% csrf_token %}
+            <label for="{{ form.token.id_for_label }}">Code reçu par SMS</label>
+            {{ form.token }}
+            <button type="submit">Vérifier</button>
+        </form>
+
+        <p class="expiry-note">Le code expire 10 minutes après l'envoi.</p>
+        <p class="restart-link">
+            Code expiré ou jamais reçu ?
+            <a href="{% url 'register' %}">Recommencer l'inscription</a>
+        </p>
+    </div>
+</body>
+</html>

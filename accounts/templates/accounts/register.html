@@ -1,0 +1,14 @@
+<h1>Créer votre compte portail patient</h1>
+{% if success %}<p style="color:green">Compte créé et lié avec succès.</p>{% endif %}
+{% if error %}<p style="color:red">{{ error }}</p>{% endif %}
+<form method="post">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <label>
+    <input type="checkbox" name="accept_privacy_policy" required>
+    J'accepte la <a href="#" target="_blank">politique de confidentialité</a>
+</label>
+  <button type="submit">S'inscrire</button>
+  <p><a href="{% url 'login' %}">Déjà un compte ? Connectez-vous ici.</a></p>
+
+</form>

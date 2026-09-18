@@ -1,0 +1,7 @@
+<!-- accounts/templates/accounts/edit_profile.html -->
+<form method="post">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    {{ form }}
+    <button type="submit">Enregistrer</button>
+</form>

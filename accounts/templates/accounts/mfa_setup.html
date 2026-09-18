@@ -1,0 +1,9 @@
+<h1>Configurer l'authentification à deux facteurs</h1>
+<p>Scanne ce QR code avec Google Authenticator ou une app équivalente :</p>
+<img src="data:image/png;base64,{{ qr_b64 }}" alt="QR Code MFA">
+{% if error %}<p style="color:red">{{ error }}</p>{% endif %}
+<form method="post">
+  {% csrf_token %}
+  <input type="text" name="token" placeholder="Code à 6 chiffres" required>
+  <button type="submit">Confirmer</button>
+</form>
