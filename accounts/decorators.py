@@ -1,8 +1,26 @@
 #accounts/decorators.py
 
+from functools import wraps
 from django.contrib.auth.decorators import login_required
 from django_otp.decorators import otp_required
+from django.core.exceptions import PermissionDenied
 
+
+def patient_required(view_func):
+    """
+    portal_login_required + rôle PATIENT (RBAC).
+
+    À utiliser à la place de portal_login_required sur toute vue
+    réservée au patient (records, appointments, dashboard...) — même
+    principe : un seul décorateur, impossible à appliquer à moitié.
+    """
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        if not request.user.is_patient_role():
+            raise PermissionDenied
+        return view_func(request, *args, **kwargs)
+
+    return portal_login_required(wrapper)
 
 def portal_login_required(view_func):
     """

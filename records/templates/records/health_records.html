@@ -1,0 +1,31 @@
+{% if error %}<p style="color:red">{{ error }}</p>{% endif %}
+
+<h1>Mes résultats de laboratoire</h1>
+{% if lab_results %}
+<table border="1" cellpadding="6">
+  <tr><th>Examen</th><th>Valeur</th><th>Unité</th><th>Date</th><th>Statut</th></tr>
+  {% for r in lab_results %}
+  <tr>
+    <td>{{ r.code }}</td><td>{{ r.value }}</td><td>{{ r.unit }}</td>
+    <td>{{ r.effective_datetime }}</td><td>{{ r.status }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p>Aucun résultat de laboratoire disponible.</p>
+{% endif %}
+
+<h1>Mes allergies</h1>
+{% if allergies %}
+<table border="1" cellpadding="6">
+  <tr><th>Substance</th><th>Statut</th><th>Criticité</th><th>Manifestations</th><th>Sévérité</th><th>Date</th></tr>
+  {% for a in allergies %}
+  <tr>
+    <td>{{ a.substance }}</td><td>{{ a.clinical_status }}</td><td>{{ a.criticality }}</td>
+    <td>{{ a.manifestations }}</td><td>{{ a.severity }}</td><td>{{ a.recorded_date }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p>Aucune allergie enregistrée.</p>
+{% endif %}

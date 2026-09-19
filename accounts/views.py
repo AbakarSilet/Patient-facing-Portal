@@ -46,108 +46,90 @@ from .otp_utils import (
 )
 from .decorators import portal_login_required
 from .models import PortalUser, PatientProfile 
+from auditlog.utils import get_client_ip
 
 
-
-
-def _get_client_ip(request):
-    num_trusted_proxies = getattr(settings, "NUM_TRUSTED_PROXIES", 0)
-
-    if num_trusted_proxies <= 0:
-        return request.META.get("REMOTE_ADDR", "0.0.0.0")
-
-    xff = request.META.get("HTTP_X_FORWARDED_FOR", "")
-    parts = [ip.strip() for ip in xff.split(",") if ip.strip()]
-
-    if len(parts) < num_trusted_proxies:
-        # En-tête incohérent avec la topologie attendue : on ne devine
-        # pas, on retombe sur l'IP du dernier saut connu.
-        return request.META.get("REMOTE_ADDR", "0.0.0.0")
-
-    return parts[-num_trusted_proxies]
 
 
 @ratelimit(key='ip', rate='20/h', method='POST', block=False)
 @ratelimit(key='post:openmrs_identifier', rate='5/h', method='POST', block=False)
 def register(request):
-    """
-    Step 1 of 2. Validates the registration form and the OpenMRS identity
-    claim, then sends an OTP — does NOT create the account yet.
-    """
     error = None
 
     if request.method == "POST":
+        if getattr(request, "limited", False):
+            return render(request, "accounts/register.html", {
+                "form": PatientRegistrationForm(request.POST),
+                "error": "Trop de tentatives. Réessaie dans quelques instants.",
+            })
+
         form = PatientRegistrationForm(request.POST)
         if form.is_valid():
-            if getattr(request, "limited", False):
-                return render(request, "accounts/register.html", {
-                    "form": form,
-                    "error": "Trop de tentatives. Réessaie dans quelques instants.",
-                })
             username = form.cleaned_data["username"]
+
             if PortalUser.objects.filter(username=username).exists():
-                return render(request, "accounts/register.html", {
-                    "form": form,
-                    "error": "Ce nom d'utilisateur est déjà pris.",
-                })
-            identifier = form.cleaned_data["openmrs_identifier"]
-            birthdate = form.cleaned_data["birthdate"]
-
-            try:
-                bundle = OpenMRSClient().find_patient_by_identifier(identifier)
-            except requests.exceptions.RequestException:
-                return render(request, "accounts/register.html", {
-                    "form": form,
-                    "error": "Service d'identification temporairement indisponible. Réessaie dans quelques instants.",
-                })
-
-            matched_patient = None
-            if bundle.get("total") == 1:
-                resource = bundle["entry"][0]["resource"]
-                if resource.get("birthDate") == birthdate.isoformat():
-                    matched_patient = resource
-
-            if not matched_patient:
-                # Generic on purpose — never reveal *which* part was wrong.
-                error = "Impossible de vérifier votre identité avec les informations fournies."
-                AuditLogEntry.objects.create(
-                    user=None, action_type=AuditLogEntry.ActionType.REGISTRATION_IDENTITY_FAILED,
-                    target_reference=identifier, ip_address=_get_client_ip(request),
-                    status=AuditLogEntry.Status.FAILURE,
-                )
+                error = "Ce nom d'utilisateur est déjà pris. Choisis-en un autre."
             else:
-                phone = extract_phone_number(matched_patient.get("telecom"))
-                if not phone:
-                    error = "Impossible de vérifier votre identité automatiquement. Merci de contacter l'accueil."
-                    print(phone)
-                else:
-                    code = generate_otp()
-                    request.session["pending_registration"] = {
-                        "username": form.cleaned_data["username"],
-                        "password_hash": make_password(form.cleaned_data["password1"]),
-                        "openmrs_patient_uuid": matched_patient["id"],
-                        "phone": phone,
-                        "phone_masked": mask_phone(phone),
-                        "otp_hash": hash_otp(code),
-                        "otp_expires_at": (timezone.now() + timedelta(seconds=OTP_VALIDITY_SECONDS)).isoformat(),
-                        "otp_attempts": 0,
+                identifier = form.cleaned_data["openmrs_identifier"]
+                birthdate = form.cleaned_data["birthdate"]
 
-                        "consent_at": timezone.now().isoformat(),
-                        "consent_ip": _get_client_ip(request),
-                        "privacy_policy_version": settings.PRIVACY_POLICY_VERSION,
-                    }
-                    send_otp_sms(phone, code)
+                try:
+                    bundle = OpenMRSClient(client_ip=get_client_ip(request)).find_patient_by_identifier(identifier)
+                except requests.exceptions.RequestException:
+                    return render(request, "accounts/register.html", {
+                        "form": form,
+                        "error": "Service d'identification temporairement indisponible. Réessaie dans quelques instants.",
+                    })
+
+                matched_patient = None
+                if bundle.get("total") == 1:
+                    resource = bundle["entry"][0]["resource"]
+                    if resource.get("birthDate") == birthdate.isoformat():
+                        matched_patient = resource
+
+                already_linked = matched_patient and PatientProfile.objects.filter(
+                    openmrs_patient_uuid=matched_patient["id"]
+                ).exists()
+
+                if not matched_patient or already_linked:
+                    # Seule cette partie reste générique — c'est la seule
+                    # qui touche à des données patient sensibles.
+                    error = "Impossible de vérifier votre identité avec les informations fournies."
                     AuditLogEntry.objects.create(
-                        user=None, action_type=AuditLogEntry.ActionType.REGISTRATION_OTP_SENT,
-                        target_reference=matched_patient["id"], ip_address=_get_client_ip(request),
-                        status=AuditLogEntry.Status.SUCCESS,
+                        user=None, action_type=AuditLogEntry.ActionType.REGISTRATION_IDENTITY_FAILED,
+                        target_reference=identifier, ip_address=get_client_ip(request),
+                        status=AuditLogEntry.Status.FAILURE,
                     )
-                    return redirect("verify_registration_otp")
+                else:
+                    phone = extract_phone_number(matched_patient.get("telecom"))
+                    if not phone:
+                        error = "Impossible de vérifier votre identité automatiquement. Merci de contacter l'accueil."
+                    else:
+                        code = generate_otp()
+                        request.session["pending_registration"] = {
+                            "username": username,
+                            "password_hash": make_password(form.cleaned_data["password1"]),
+                            "openmrs_patient_uuid": matched_patient["id"],
+                            "phone": phone,
+                            "phone_masked": mask_phone(phone),
+                            "otp_hash": hash_otp(code),
+                            "otp_expires_at": (timezone.now() + timedelta(seconds=OTP_VALIDITY_SECONDS)).isoformat(),
+                            "otp_attempts": 0,
+                            "consent_at": timezone.now().isoformat(),
+                            "consent_ip": get_client_ip(request),
+                            "privacy_policy_version": settings.PRIVACY_POLICY_VERSION,
+                        }
+                        send_otp_sms(phone, code)
+                        AuditLogEntry.objects.create(
+                            user=None, action_type=AuditLogEntry.ActionType.REGISTRATION_OTP_SENT,
+                            target_reference=matched_patient["id"], ip_address=get_client_ip(request),
+                            status=AuditLogEntry.Status.SUCCESS,
+                        )
+                        return redirect("verify_registration_otp")
     else:
         form = PatientRegistrationForm()
 
     return render(request, "accounts/register.html", {"form": form, "error": error})
-
 
 def verify_registration_otp(request):
     """
@@ -170,7 +152,7 @@ def verify_registration_otp(request):
             del request.session["pending_registration"]
             AuditLogEntry.objects.create(
                 user=None, action_type=AuditLogEntry.ActionType.REGISTRATION_OTP_LOCKED,
-                target_reference=pending["openmrs_patient_uuid"], ip_address=_get_client_ip(request),
+                target_reference=pending["openmrs_patient_uuid"], ip_address=get_client_ip(request),
                 status=AuditLogEntry.Status.FAILURE,
             )
             return redirect("register")
@@ -218,7 +200,7 @@ def verify_registration_otp(request):
                 error = f"Code invalide ({remaining} tentative(s) restante(s))."
                 AuditLogEntry.objects.create(
                     user=None, action_type=AuditLogEntry.ActionType.REGISTRATION_OTP_FAILED,
-                    target_reference=pending["openmrs_patient_uuid"], ip_address=_get_client_ip(request),
+                    target_reference=pending["openmrs_patient_uuid"], ip_address=get_client_ip(request),
                     status=AuditLogEntry.Status.FAILURE,
                 )
     else:
@@ -287,6 +269,8 @@ def _mfa_enrollment_phone_gate(request):
         "form": OTPVerifyForm(), "error": error, "phone_masked": mask_phone(phone),
     })
 
+@ratelimit(key='ip', rate='30/h', method='POST', block=False)
+@ratelimit(key='user', rate='15/h', method='POST', block=False)
 @login_required
 def mfa_setup(request):
     if TOTPDevice.objects.filter(user=request.user, confirmed=True).exists():
@@ -296,26 +280,33 @@ def mfa_setup(request):
         return _mfa_enrollment_phone_gate(request)
 
     device, _ = TOTPDevice.objects.get_or_create(
-        user=request.user, confirmed=False,
-        defaults={"name": "default"}
+        user=request.user, confirmed=False, defaults={"name": "default"}
     )
 
     error = None
     if request.method == "POST":
-        token = request.POST.get("token", "")
-        if device.verify_token(token):
-            device.confirmed = True
-            device.save()
-            request.session.pop("identity_proof_at", None)  # consommée
-            from django_otp import login as otp_login
-            otp_login(request, device)
+        if getattr(request, "limited", False):
+            error = "Trop de tentatives. Réessaie plus tard."
+        else:
+            token = request.POST.get("token", "")
+            if device.verify_token(token):
+                device.confirmed = True
+                device.save()
+                request.session.pop("identity_proof_at", None)
+                from django_otp import login as otp_login
+                otp_login(request, device)
+                AuditLogEntry.objects.create(
+                    user=request.user, action_type=AuditLogEntry.ActionType.MFA_ENROLLED,
+                    target_reference=str(device.id), ip_address=get_client_ip(request),
+                    status=AuditLogEntry.Status.SUCCESS,
+                )
+                return redirect("dashboard")
+            error = "Code invalide, réessaie."
             AuditLogEntry.objects.create(
-                user=request.user, action_type=AuditLogEntry.ActionType.MFA_ENROLLED,
-                target_reference=str(device.id), ip_address=_get_client_ip(request),
-                status=AuditLogEntry.Status.SUCCESS,
+                user=request.user, action_type=AuditLogEntry.ActionType.MFA_ENROLLMENT_FAILED,
+                target_reference=str(device.id), ip_address=get_client_ip(request),
+                status=AuditLogEntry.Status.FAILURE,
             )
-            return redirect("dashboard")
-        error = "Code invalide, réessaie."
 
     img = qrcode.make(device.config_url)
     buf = BytesIO()
@@ -356,7 +347,7 @@ def login_view(request):
                 user=PortalUser.objects.filter(username=attempted_username).first(),
                 action_type=AuditLogEntry.ActionType.LOGIN_FAILED,
                 target_reference=attempted_username,
-                ip_address=_get_client_ip(request), status=AuditLogEntry.Status.FAILURE,
+                ip_address=get_client_ip(request), status=AuditLogEntry.Status.FAILURE,
             )
     else:
         form = AuthenticationForm()
@@ -368,6 +359,7 @@ def login_view(request):
 
 OTP_VERIFY_SESSION_KEY = "otp_verify_attempts"
 
+@ratelimit(key='ip', rate='40/h', method='POST', block=False)
 @ratelimit(key='user', rate='20/h', method='POST', block=False)
 @login_required
 def otp_verify(request):
@@ -389,7 +381,7 @@ def otp_verify(request):
         if attempts >= OTP_MAX_ATTEMPTS:
             AuditLogEntry.objects.create(
                 user=request.user, action_type=AuditLogEntry.ActionType.LOGIN_OTP_LOCKED,
-                ip_address=_get_client_ip(request), status=AuditLogEntry.Status.FAILURE,
+                ip_address=get_client_ip(request), status=AuditLogEntry.Status.FAILURE,
             )
             auth_logout(request)
             return render(request, "accounts/otp_verify_locked.html")
@@ -404,7 +396,7 @@ def otp_verify(request):
                 AuditLogEntry.objects.create(
                     user=request.user,
                     action_type=AuditLogEntry.ActionType.LOGIN,
-                    ip_address=_get_client_ip(request),
+                    ip_address=get_client_ip(request),
                     status=AuditLogEntry.Status.SUCCESS,
                 )
                 return redirect("dashboard")
@@ -415,7 +407,7 @@ def otp_verify(request):
             AuditLogEntry.objects.create(
                 user=request.user,
                 action_type=AuditLogEntry.ActionType.LOGIN_FAILED,
-                ip_address=_get_client_ip(request),
+                ip_address=get_client_ip(request),
                 status=AuditLogEntry.Status.FAILURE,
             )
     else:
@@ -468,7 +460,7 @@ def forgot_password(request):
                     send_otp_sms(user.patientprofile.phone_number, code)
                     AuditLogEntry.objects.create(
                         user=user, action_type=AuditLogEntry.ActionType.PASSWORD_RESET_REQUESTED,
-                        target_reference=username, ip_address=_get_client_ip(request),
+                        target_reference=username, ip_address=get_client_ip(request),
                         status=AuditLogEntry.Status.SUCCESS,
                     )
                     return redirect("reset_password_confirm")
@@ -476,7 +468,7 @@ def forgot_password(request):
                 error = "Nom d'utilisateur et/ou numéro de téléphone incorrect."
                 AuditLogEntry.objects.create(
                     user=user, action_type=AuditLogEntry.ActionType.PASSWORD_RESET_IDENTITY_FAILED,
-                    target_reference=username, ip_address=_get_client_ip(request),
+                    target_reference=username, ip_address=get_client_ip(request),
                     status=AuditLogEntry.Status.FAILURE,
                 )
     else:
@@ -541,7 +533,7 @@ def reset_password_confirm(request):
             del request.session["pending_password_reset"]
             AuditLogEntry.objects.create(
                 user_id=pending["user_id"], action_type=AuditLogEntry.ActionType.PASSWORD_RESET_LOCKED,
-                ip_address=_get_client_ip(request), status=AuditLogEntry.Status.FAILURE,
+                ip_address=get_client_ip(request), status=AuditLogEntry.Status.FAILURE,
             )
             return redirect("forgot_password")
 
@@ -558,7 +550,7 @@ def reset_password_confirm(request):
                 del request.session["pending_password_reset"]
                 AuditLogEntry.objects.create(
                     user=user, action_type=AuditLogEntry.ActionType.PASSWORD_RESET_SUCCESS,
-                    ip_address=_get_client_ip(request), status=AuditLogEntry.Status.SUCCESS,
+                    ip_address=get_client_ip(request), status=AuditLogEntry.Status.SUCCESS,
                 )
                 return redirect("login")
             pending["otp_attempts"] += 1
@@ -567,7 +559,7 @@ def reset_password_confirm(request):
             error = f"Code invalide ({remaining} tentative(s) restante(s))."
             AuditLogEntry.objects.create(
                 user_id=pending["user_id"], action_type=AuditLogEntry.ActionType.PASSWORD_RESET_OTP_FAILED,
-                ip_address=_get_client_ip(request), status=AuditLogEntry.Status.FAILURE,
+                ip_address=get_client_ip(request), status=AuditLogEntry.Status.FAILURE,
             )
     else:
         form = PasswordResetConfirmForm()
@@ -596,7 +588,7 @@ def change_username(request):
                 AuditLogEntry.objects.create(
                     user=request.user, action_type=AuditLogEntry.ActionType.USERNAME_CHANGED,
                     target_reference=f"{old_username} -> {request.user.username}",
-                    ip_address=_get_client_ip(request), status=AuditLogEntry.Status.SUCCESS,
+                    ip_address=get_client_ip(request), status=AuditLogEntry.Status.SUCCESS,
                 )
                 try:
                     send_sms(
@@ -636,7 +628,7 @@ def change_password(request):
                 update_session_auth_hash(request, user)
                 AuditLogEntry.objects.create(
                     user=user, action_type=AuditLogEntry.ActionType.PASSWORD_CHANGED,
-                    ip_address=_get_client_ip(request), status=AuditLogEntry.Status.SUCCESS,
+                    ip_address=get_client_ip(request), status=AuditLogEntry.Status.SUCCESS,
                 )
                 try:
                     send_sms(
@@ -661,7 +653,7 @@ def edit_profile(request):
             form.save()
             AuditLogEntry.objects.create(
                 user=request.user, action_type=AuditLogEntry.ActionType.PROFILE_UPDATED,
-                ip_address=_get_client_ip(request), status=AuditLogEntry.Status.SUCCESS,
+                ip_address=get_client_ip(request), status=AuditLogEntry.Status.SUCCESS,
             )
             return redirect("dashboard")
     else:
@@ -706,7 +698,7 @@ def request_account_deletion(request):
                 AuditLogEntry.objects.create(
                     user=request.user, action_type=AuditLogEntry.ActionType.DATA_ERASURE_REQUESTED,
                     target_reference=f"scheduled_for={scheduled_for.isoformat()}",
-                    ip_address=_get_client_ip(request), status=AuditLogEntry.Status.SUCCESS,
+                    ip_address=get_client_ip(request), status=AuditLogEntry.Status.SUCCESS,
                 )
                 try:
                     send_sms(
@@ -729,6 +721,7 @@ MFA_RECOVERY_SESSION_KEY = "pending_mfa_recovery_otp"
 MFA_RECOVERY_RESEND_MAX = 3
 
 
+@ratelimit(key='ip', rate='30/h', method='POST', block=False)
 @ratelimit(key='user', rate='10/h', method='POST', block=False)
 @login_required
 def lost_mfa_device(request):
@@ -793,7 +786,7 @@ def lost_mfa_device(request):
         send_otp_sms(phone, code)
         AuditLogEntry.objects.create(
             user=request.user, action_type=AuditLogEntry.ActionType.MFA_RECOVERY_OTP_SENT,
-            ip_address=_get_client_ip(request), status=AuditLogEntry.Status.SUCCESS,
+            ip_address=get_client_ip(request), status=AuditLogEntry.Status.SUCCESS,
         )
 
     if request.method == "POST":
@@ -806,7 +799,7 @@ def lost_mfa_device(request):
             del request.session[MFA_RECOVERY_SESSION_KEY]
             AuditLogEntry.objects.create(
                 user=request.user, action_type=AuditLogEntry.ActionType.MFA_RECOVERY_OTP_LOCKED,
-                ip_address=_get_client_ip(request), status=AuditLogEntry.Status.FAILURE,
+                ip_address=get_client_ip(request), status=AuditLogEntry.Status.FAILURE,
             )
             return render(request, "accounts/lost_mfa_device_error.html", {
                 "error": "Trop de tentatives incorrectes. Contactez l'accueil pour débloquer votre compte.",
@@ -819,7 +812,7 @@ def lost_mfa_device(request):
             request.session["identity_proof_at"] = timezone.now().isoformat()
             AuditLogEntry.objects.create(
                 user=request.user, action_type=AuditLogEntry.ActionType.MFA_DEVICE_RESET,
-                ip_address=_get_client_ip(request), status=AuditLogEntry.Status.SUCCESS,
+                ip_address=get_client_ip(request), status=AuditLogEntry.Status.SUCCESS,
             )
             send_sms(
                 phone,
@@ -833,7 +826,7 @@ def lost_mfa_device(request):
         error = f"Code invalide ({remaining} tentative(s) restante(s))."
         AuditLogEntry.objects.create(
             user=request.user, action_type=AuditLogEntry.ActionType.MFA_RECOVERY_OTP_FAILED,
-            ip_address=_get_client_ip(request), status=AuditLogEntry.Status.FAILURE,
+            ip_address=get_client_ip(request), status=AuditLogEntry.Status.FAILURE,
         )
     else:
         form = OTPVerifyForm()

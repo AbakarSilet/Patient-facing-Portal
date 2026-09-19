@@ -143,6 +143,25 @@ NUM_TRUSTED_PROXIES = 0  # 0 en dev (runserver). En prod : 1 si nginx seul devan
 # qui termine le TLS — utilisé par login_view pour valider le paramètre `next`.
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
+PRIVACY_POLICY_VERSION = "2026-09"  # à incrémenter à chaque révision matérielle du texte
+
+# REQ-03
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Strict"
+CSRF_COOKIE_SAMESITE = "Strict"
+
+# REQ-09 — active uniquement hors dev local en HTTP simple, sinon runserver casse
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
+SECURE_SSL_REDIRECT = not DEBUG
+SECURE_HSTS_SECONDS = 0 if DEBUG else 31536000
+SECURE_HSTS_INCLUDE_SUBDOMAINS = not DEBUG
+SECURE_HSTS_PRELOAD = not DEBUG
+
+# REQ-15
+DATABASES["default"]["CONN_MAX_AGE"] = 60
+DATABASES["default"].setdefault("OPTIONS", {})["options"] = "-c statement_timeout=5000"
+
 #for Prod
 # CACHES = {
 #     "default": {

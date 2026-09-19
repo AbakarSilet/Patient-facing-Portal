@@ -33,7 +33,9 @@ class AuditLogEntry(models.Model):
         MFA_DEVICE_RESET = "MFA_DEVICE_RESET", "Device TOTP réinitialisé après perte"
         LOGIN_OTP_LOCKED = "LOGIN_OTP_LOCKED", "Verrouillage TOTP au login (tentatives épuisées)"
         CONSENT_RECORDED = "CONSENT_RECORDED", "Consentement à la politique de confidentialité enregistré"
-        
+        MFA_ENROLLMENT_FAILED = "MFA_ENROLLMENT_FAILED", "Code TOTP invalide à l'enrôlement"
+
+
 
     class Status(models.TextChoices):
         SUCCESS = "SUCCESS", "Success"
@@ -55,3 +57,23 @@ class AuditLogEntry(models.Model):
 
     def __str__(self):
         return f"{self.timestamp} - {self.user} - {self.action_type} - {self.status}"
+
+# auditlog/models.py
+
+class OpenMRSRequestLog(models.Model):
+    """
+    REQ-14 : trace chaque appel sortant vers OpenMRS — jamais le payload
+    patient lui-même (éviterait de dupliquer le stockage de PHI).
+    """
+    timestamp = models.DateTimeField(auto_now_add=True)
+    method = models.CharField(max_length=10)
+    endpoint = models.CharField(max_length=255)
+    status_code = models.PositiveSmallIntegerField(null=True, blank=True)  # null si exception réseau avant réponse
+    duration_ms = models.PositiveIntegerField(null=True, blank=True)
+    triggered_by_ip = models.GenericIPAddressField(null=True, blank=True)  # IP du visiteur à l'origine de l'appel, si connue
+
+    def __str__(self):
+        return f"{self.timestamp} {self.method} {self.endpoint} -> {self.status_code}"
+
+
+
