@@ -1,12 +1,141 @@
-<h1>Créer votre compte portail patient</h1>
-{% if success %}<p style="color:green">Compte créé et lié avec succès.</p>{% endif %}
-{% if error %}<p style="color:red">{{ error }}</p>{% endif %}
-<form method="post">
-  {% csrf_token %}
-  {{ form.as_p }}
+{% extends 'base.html' %}
+{% load static %}
 
-    J'accepte la <a href="#" target="_blank">politique de confidentialité</a>
-  <button type="submit">S'inscrire</button>
-  <p><a href="{% url 'login' %}">Déjà un compte ? Connectez-vous ici.</a></p>
+{% block title %}Create Account - ABU Patient Portal{% endblock %}
 
-</form>
+{% block style %}
+<style>
+    .auth-card {
+        max-width: 440px;
+        margin: 0.5rem auto;
+        padding: 1.25rem 1.5rem;
+        background-color: var(--bg-surface);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+    }
+    .auth-card .form-control {
+        background-color: var(--bg-body);
+        color: var(--text-primary);
+        border-color: var(--border-color);
+        padding: 0.45rem 0.75rem;
+        font-size: 0.875rem;
+    }
+    .auth-card .form-control:focus {
+        background-color: var(--bg-body);
+        color: var(--text-primary);
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 0.25rem rgba(13, 148, 136, 0.15);
+    }
+    .auth-card .form-check-input {
+        background-color: var(--bg-body);
+        border-color: var(--border-color);
+        cursor: pointer;
+    }
+    .auth-card .form-check-input:checked {
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-center py-1">
+    <div class="auth-card w-100">
+        
+        <!-- Header Badge -->
+        <div class="text-center mb-2.5">
+            <div class="d-inline-flex align-items-center justify-content-center rounded-circle mb-1.5" 
+                 style="width: 52px; height: 52px; background-color: var(--color-primary-light); color: var(--color-primary);">
+                <i class="ri-user-add-line fs-3"></i>
+            </div>
+            <h2 class="fw-bold fs-5 mb-0.5" style="color: var(--text-primary);">Create Patient Account</h2>
+            <p class="text-muted small mb-0">Link your medical record to access the portal</p>
+        </div>
+
+        <!-- Success Alert -->
+        {% if success %}
+        <div class="alert alert-success d-flex align-items-center gap-2 py-1.5 px-3 small mb-2" role="alert">
+            <i class="ri-checkbox-circle-line fs-5"></i>
+            <div>Account successfully created and linked.</div>
+        </div>
+        {% endif %}
+
+        <!-- Error Alert -->
+        {% if error %}
+        <div class="alert alert-danger d-flex align-items-center gap-2 py-1.5 px-3 small mb-2" role="alert">
+            <i class="ri-error-warning-line fs-5"></i>
+            <div>{{ error }}</div>
+        </div>
+        {% endif %}
+
+        <!-- Form -->
+        <form method="post" class="needs-validation">
+            {% csrf_token %}
+            
+            {% if form.non_field_errors %}
+                <div class="alert alert-danger py-1.5 px-3 small mb-2">
+                    {{ form.non_field_errors.0 }}
+                </div>
+            {% endif %}
+
+            <!-- Dynamic Fields Loop -->
+            {% for field in form %}
+                {% if field.name == 'accept_privacy_policy' %}
+                    <!-- Checkbox styling for Privacy Policy -->
+                    <div class="form-check mb-2 text-start">
+                        {{ field }}
+                        <label class="form-check-label small" for="{{ field.id_for_label }}" style="color: var(--text-primary);">
+                            I agree to the <a href="#" target="_blank" style="color: var(--color-primary);">Privacy Policy</a>
+                        </label>
+                        {% if field.errors %}
+                            <div class="text-danger small mt-0.5">{{ field.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                {% else %}
+                    <!-- Standard Text/Password/Date Fields -->
+                    <div class="mb-2 text-start">
+                        <label for="{{ field.id_for_label }}" class="form-label fw-medium small mb-1" style="color: var(--text-primary);">
+                            {{ field.label }}
+                        </label>
+                        {{ field }}
+                        {% if field.errors %}
+                            <div class="text-danger small mt-0.5">{{ field.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            {% endfor %}
+
+            <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold mt-2" style="background-color: var(--color-primary); border: none;">
+                <i class="ri-user-check-line me-1"></i> Register Account
+            </button>
+        </form>
+
+        <!-- Secondary Link -->
+        <div class="text-center mt-2.5 pt-2 border-top" style="border-color: var(--border-color) !important;">
+            <p class="mb-0 small" style="color: var(--text-muted);">
+                Already have an account? 
+                <a href="{% url 'login' %}" class="fw-semibold text-decoration-none" style="color: var(--color-primary);">
+                    Sign in here
+                </a>
+            </p>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block javascript %}
+<script>
+    // Classes Bootstrap automatiques pour les formulaires
+    document.querySelectorAll('.auth-card input[type="text"], .auth-card input[type="password"], .auth-card input[type="email"], .auth-card input[type="date"]').forEach(input => {
+        input.classList.add('form-control');
+    });
+
+    // Classe Bootstrap pour la checkbox
+    const checkbox = document.querySelector('.auth-card input[type="checkbox"]');
+    if (checkbox) {
+        checkbox.classList.add('form-check-input');
+    }
+</script>
+{% endblock %}

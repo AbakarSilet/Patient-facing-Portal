@@ -2,6 +2,8 @@
 
 from django_ratelimit.decorators import ratelimit
 from django.db import transaction
+from django.urls import reverse
+from urllib.parse import urlencode
 from django.conf import settings
 from django.shortcuts import render
 from django.contrib.auth import login as auth_login
@@ -335,11 +337,17 @@ def login_view(request):
                 auth_login(request, user, backend="django.contrib.auth.backends.ModelBackend")
 
                 next_url = request.POST.get("next") or request.GET.get("next")
-                if next_url and url_has_allowed_host_and_scheme(
+                safe_next = next_url if next_url and url_has_allowed_host_and_scheme(
                     next_url, allowed_hosts={request.get_host()}, require_https=request.is_secure()
-                ):
-                    return redirect(next_url)
-                return redirect("otp_verify")
+                ) else ""
+
+                # Le MFA s'intercale TOUJOURS avant la destination finale —
+                # jamais de raccourci vers `next` ici, sinon on contourne
+                # otp_verify et on retombe dans la boucle observée.
+                otp_url = reverse("otp_verify")
+                if safe_next:
+                    otp_url = f"{otp_url}?{urlencode({'next': safe_next})}"
+                return redirect(otp_url)
 
             error = "Identifiants invalides."
             attempted_username = request.POST.get("username", "")
@@ -356,15 +364,20 @@ def login_view(request):
         "form": form, "error": error, "next": request.GET.get("next", ""),
     })
 
-
 OTP_VERIFY_SESSION_KEY = "otp_verify_attempts"
+
 
 @ratelimit(key='ip', rate='40/h', method='POST', block=False)
 @ratelimit(key='user', rate='20/h', method='POST', block=False)
 @login_required
 def otp_verify(request):
+    next_url = request.POST.get("next") or request.GET.get("next")
+    safe_next = next_url if next_url and url_has_allowed_host_and_scheme(
+        next_url, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+    ) else ""
+
     if request.user.is_verified():
-        return redirect("dashboard")
+        return redirect(safe_next or "dashboard")
 
     device = TOTPDevice.objects.filter(user=request.user, confirmed=True).first()
     if not device:
@@ -374,7 +387,7 @@ def otp_verify(request):
     if request.method == "POST":
         if getattr(request, "limited", False):
             return render(request, "accounts/otp_verify.html", {
-                "form": OTPVerifyForm(), "error": "Trop de tentatives. Réessaie plus tard.",
+                "form": OTPVerifyForm(), "error": "Trop de tentatives. Réessaie plus tard.", "next": safe_next,
             })
 
         attempts = request.session.get(OTP_VERIFY_SESSION_KEY, 0)
@@ -394,29 +407,27 @@ def otp_verify(request):
                 from django_otp import login as otp_login
                 otp_login(request, device)
                 AuditLogEntry.objects.create(
-                    user=request.user,
-                    action_type=AuditLogEntry.ActionType.LOGIN,
-                    ip_address=get_client_ip(request),
-                    status=AuditLogEntry.Status.SUCCESS,
+                    user=request.user, action_type=AuditLogEntry.ActionType.LOGIN,
+                    ip_address=get_client_ip(request), status=AuditLogEntry.Status.SUCCESS,
                 )
-                return redirect("dashboard")
+                return redirect(safe_next or "dashboard")
             attempts += 1
             request.session[OTP_VERIFY_SESSION_KEY] = attempts
             remaining = OTP_MAX_ATTEMPTS - attempts
             error = f"Code invalide ({remaining} tentative(s) restante(s))."
             AuditLogEntry.objects.create(
-                user=request.user,
-                action_type=AuditLogEntry.ActionType.LOGIN_FAILED,
-                ip_address=get_client_ip(request),
-                status=AuditLogEntry.Status.FAILURE,
+                user=request.user, action_type=AuditLogEntry.ActionType.LOGIN_FAILED,
+                ip_address=get_client_ip(request), status=AuditLogEntry.Status.FAILURE,
             )
     else:
         form = OTPVerifyForm()
-    return render(request, "accounts/otp_verify.html", {"form": form, "error": error})
+    return render(request, "accounts/otp_verify.html", {"form": form, "error": error, "next": safe_next})
+
 
 def logout_view(request):
     auth_logout(request)
     return redirect("login")
+
 
 @ratelimit(key='ip', rate='20/h', method='POST', block=False)
 @ratelimit(key='post:username', rate='5/h', method='POST', block=False)

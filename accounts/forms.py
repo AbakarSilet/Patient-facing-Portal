@@ -5,12 +5,12 @@ from .models import PortalUser
 
 
 class PatientRegistrationForm(UserCreationForm):
-    openmrs_identifier = forms.CharField(max_length=20, label="OpenMRS ID (ex: 10000X)")
-    birthdate = forms.DateField(label="Date de naissance", widget=forms.DateInput(attrs={'type': 'date'}))
+    openmrs_identifier = forms.CharField(max_length=20, label="OpenMRS ID (e.g., 10000X)")
+    birthdate = forms.DateField(label="Date of Birth", widget=forms.DateInput(attrs={'type': 'date'}))
     accept_privacy_policy = forms.BooleanField(
         required=True,
-        label="J'accepte la politique de confidentialité",
-        error_messages={"required": "Vous devez accepter la politique de confidentialité pour continuer."},
+        label="I agree to the privacy policy",
+        error_messages={"required": "You must accept the privacy policy to continue."},
     )
 
     class Meta:

@@ -1,3 +1,73 @@
-<!-- accounts/templates/accounts/otp_verify_locked.html -->
-<p class="error">Trop de codes invalides. Ta session a été fermée par sécurité.</p>
-<a href="{% url 'login' %}">Se reconnecter</a>
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Session Terminated - Security Lock - ABU Patient Portal{% endblock %}
+
+{% block style %}
+<style>
+    .auth-card {
+        max-width: 420px;
+        margin: 0.5rem auto;
+        padding: 1.25rem 1.5rem;
+        background-color: var(--bg-surface);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+    }
+    .security-badge {
+        width: 56px;
+        height: 56px;
+        background-color: var(--color-danger-light, rgba(220, 38, 38, 0.1));
+        color: var(--color-danger, #dc2626);
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-center py-1">
+    <div class="auth-card w-100 text-center">
+        
+        <!-- Lockout Icon Badge -->
+        <div class="security-badge mb-2">
+            <i class="ri-lock-password-line fs-3"></i>
+        </div>
+
+        <!-- Title & Main Warning -->
+        <h2 class="fw-bold fs-5 mb-1" style="color: var(--text-primary);">Too Many Invalid Attempts</h2>
+        <p class="text-muted small mb-2.5">
+            Your verification session has been terminated for your protection after multiple failed authentication attempts.
+        </p>
+
+        <!-- Information Box (Haute visibilité Mode Sombre/Clair) -->
+        <div class="p-2.5 mb-3 text-start rounded-3 border" 
+             style="background-color: rgba(220, 38, 38, 0.12); border-color: rgba(239, 68, 68, 0.3) !important;">
+            <div class="d-flex gap-2 align-items-start">
+                <i class="ri-shield-cross-line fs-5 flex-shrink-0 mt-0.5" style="color: #ef4444;"></i>
+                <div class="small">
+                    <strong class="d-block mb-0.5" style="color: var(--text-primary);">Why did this happen?</strong>
+                    <span style="color: var(--text-secondary);">
+                        To safeguard patient record integrity and prevent unauthorized access, sessions are automatically invalidated upon repeated incorrect OTP inputs.
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Primary Action Button -->
+        <a href="{% url 'login' %}" class="btn btn-primary w-100 py-2 fw-semibold d-inline-flex align-items-center justify-content-center gap-2" style="background-color: var(--color-primary); border: none;">
+            <i class="ri-arrow-left-line"></i> Return to Sign In
+        </a>
+
+        <!-- Secondary Support Link -->
+        <div class="mt-2.5 pt-2 border-top" style="border-color: var(--border-color) !important;">
+            <p class="mb-0 small text-muted">
+                Need assistance? <a href="#" class="text-decoration-none" style="color: var(--color-primary);">Contact Portal Support</a>
+            </p>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
