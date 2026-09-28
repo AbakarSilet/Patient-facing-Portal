@@ -1,127 +1,112 @@
-{# accounts/templates/accounts/verify_registration_otp.html #}
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vérification du code — Portail Patient</title>
-    <style>
-        body {
-            font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
-            background: #f2f4f6;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-        }
-        .card {
-            background: #fff;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-            padding: 32px;
-            width: 100%;
-            max-width: 380px;
-        }
-        h1 {
-            font-size: 20px;
-            color: #12263a;
-            margin: 0 0 8px;
-        }
-        p.subtitle {
-            font-size: 14px;
-            color: #555;
-            margin: 0 0 24px;
-            line-height: 1.5;
-        }
-        p.subtitle strong {
-            color: #12263a;
-        }
-        label {
-            display: block;
-            font-size: 13px;
-            font-weight: 600;
-            color: #12263a;
-            margin-bottom: 6px;
-        }
-        input[type="text"] {
-            width: 100%;
-            box-sizing: border-box;
-            padding: 12px;
-            font-size: 20px;
-            letter-spacing: 6px;
-            text-align: center;
-            border: 1px solid #ccc;
-            border-radius: 6px;
-            margin-bottom: 16px;
-        }
-        input[type="text"]:focus {
-            outline: none;
-            border-color: #2a9d8f;
-        }
-        button {
-            width: 100%;
-            padding: 12px;
-            background: #12263a;
-            color: #fff;
-            border: none;
-            border-radius: 6px;
-            font-size: 15px;
-            font-weight: 600;
-            cursor: pointer;
-        }
-        button:hover {
-            background: #1c3654;
-        }
-        .error {
-            background: #fce9d8;
-            color: #7a3b00;
-            padding: 10px 12px;
-            border-radius: 6px;
-            font-size: 13px;
-            margin-bottom: 16px;
-        }
-        .expiry-note {
-            font-size: 12px;
-            color: #777;
-            text-align: center;
-            margin-top: 16px;
-        }
-        .restart-link {
-            font-size: 12px;
-            text-align: center;
-            margin-top: 8px;
-        }
-        .restart-link a {
-            color: #2a9d8f;
-        }
-    </style>
-</head>
-<body>
-    <div class="card">
-        <h1>Vérification du code</h1>
-        <p class="subtitle">
-            Un code à 6 chiffres a été envoyé par SMS au
-            <strong>{{ phone_masked }}</strong>.
-            Saisis-le ci-dessous pour finaliser ton inscription.
-        </p>
+{% extends 'base.html' %}
+{% load static %}
 
+{% block title %}Verify Registration Code - Patient Portal{% endblock %}
+
+{% block style %}
+<style>
+    .auth-card {
+        max-width: 420px;
+        margin: 0.5rem auto;
+        padding: 1.25rem 1.5rem;
+        background-color: var(--bg-surface);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+    }
+    .auth-card .form-control {
+        background-color: var(--bg-body);
+        color: var(--text-primary);
+        border-color: var(--border-color);
+        text-align: center;
+        letter-spacing: 0.2rem;
+        font-size: 1.15rem;
+        font-weight: 600;
+        padding: 0.5rem;
+    }
+    .auth-card .form-control:focus {
+        background-color: var(--bg-body);
+        color: var(--text-primary);
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 0.25rem rgba(13, 148, 136, 0.15);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-center py-1">
+    <div class="auth-card w-100">
+        
+        <!-- Header Badge -->
+        <div class="text-center mb-2.5">
+            <div class="d-inline-flex align-items-center justify-content-center rounded-circle mb-1.5" 
+                 style="width: 52px; height: 52px; background-color: var(--color-primary-light); color: var(--color-primary);">
+                <i class="ri-message-3-line fs-2"></i>
+            </div>
+            <h2 class="fw-bold fs-5 mb-0.5" style="color: var(--text-primary);">Verify Code</h2>
+            <p class="text-muted small mb-0">
+                A 6-digit verification code was sent via SMS to <strong>{{ phone_masked }}</strong>. Enter it below to complete registration.
+            </p>
+        </div>
+
+        <!-- Error Alert -->
         {% if error %}
-            <div class="error">{{ error }}</div>
+        <div class="alert alert-danger d-flex align-items-center gap-2 py-1.5 px-3 small mb-2" role="alert">
+            <i class="ri-error-warning-line fs-5"></i>
+            <div>{{ error }}</div>
+        </div>
         {% endif %}
 
-        <form method="post" novalidate>
+        <!-- Verification Form -->
+        <form method="post" novalidate class="needs-validation">
             {% csrf_token %}
-            <label for="{{ form.token.id_for_label }}">Code reçu par SMS</label>
-            {{ form.token }}
-            <button type="submit">Vérifier</button>
+            
+            {% if form.non_field_errors %}
+                <div class="alert alert-danger py-1.5 px-3 small mb-2">
+                    {{ form.non_field_errors.0 }}
+                </div>
+            {% endif %}
+
+            <div class="mb-2 text-start">
+                <label for="{{ form.token.id_for_label }}" class="form-label fw-medium small mb-1" style="color: var(--text-primary);">
+                    SMS Verification Code
+                </label>
+                {{ form.token }}
+                {% if form.token.errors %}
+                    <div class="text-danger small mt-0.5">{{ form.token.errors.0 }}</div>
+                {% endif %}
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold mt-2" style="background-color: var(--color-primary); border: none;">
+                <i class="ri-user-check-line me-1"></i> Verify & Complete Registration
+            </button>
         </form>
 
-        <p class="expiry-note">Le code expire 10 minutes après l'envoi.</p>
-        <p class="restart-link">
-            Code expiré ou jamais reçu ?
-            <a href="{% url 'register' %}">Recommencer l'inscription</a>
-        </p>
+        <!-- Expiry & Restart Links -->
+        <div class="text-center mt-2.5 pt-2 border-top" style="border-color: var(--border-color) !important;">
+            <p class="text-muted small mb-1 opacity-75" style="font-size: 0.75rem;">
+                <i class="ri-time-line me-1"></i> Code expires 10 minutes after sending.
+            </p>
+            <p class="mb-0 small" style="color: var(--text-muted);">
+                Didn't receive the code or expired? 
+                <a href="{% url 'register' %}" class="fw-semibold text-decoration-none" style="color: var(--color-primary);">
+                    Restart Registration
+                </a>
+            </p>
+        </div>
+
     </div>
-</body>
-</html>
+</div>
+{% endblock %}
+
+{% block javascript %}
+<script>
+    // Style verification code input
+    document.querySelectorAll('.auth-card input[type="text"], .auth-card input[type="number"]').forEach(input => {
+        input.classList.add('form-control');
+        input.setAttribute('placeholder', '••••••');
+        input.setAttribute('autocomplete', 'one-time-code');
+        input.setAttribute('maxlength', '6');
+    });
+</script>
+{% endblock %}

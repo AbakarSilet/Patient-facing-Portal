@@ -1,9 +1,111 @@
-<h1>Configurer l'authentification à deux facteurs</h1>
-<p>Scanne ce QR code avec Google Authenticator ou une app équivalente :</p>
-<img src="data:image/png;base64,{{ qr_b64 }}" alt="QR Code MFA">
-{% if error %}<p style="color:red">{{ error }}</p>{% endif %}
-<form method="post">
-  {% csrf_token %}
-  <input type="text" name="token" placeholder="Code à 6 chiffres" required>
-  <button type="submit">Confirmer</button>
-</form>
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Set Up 2FA - Patient Portal{% endblock %}
+
+{% block style %}
+<style>
+    .auth-card {
+        max-width: 420px;
+        margin: 0.5rem auto;
+        padding: 1.25rem 1.5rem;
+        background-color: var(--bg-surface);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+    }
+    .qr-container {
+        background-color: #ffffff;
+        padding: 0.75rem;
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+        display: inline-block;
+    }
+    .qr-container img {
+        width: 160px;
+        height: 160px;
+        object-fit: contain;
+    }
+    .auth-card .form-control {
+        background-color: var(--bg-body);
+        color: var(--text-primary);
+        border-color: var(--border-color);
+        text-align: center;
+        letter-spacing: 0.2rem;
+        font-size: 1.15rem;
+        font-weight: 600;
+        padding: 0.5rem;
+    }
+    .auth-card .form-control:focus {
+        background-color: var(--bg-body);
+        color: var(--text-primary);
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 0.25rem rgba(13, 148, 136, 0.15);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-center py-1">
+    <div class="auth-card w-100">
+        
+        <!-- Header Badge -->
+        <div class="text-center mb-2.5">
+            <div class="d-inline-flex align-items-center justify-content-center rounded-circle mb-1.5" 
+                 style="width: 52px; height: 52px; background-color: var(--color-primary-light); color: var(--color-primary);">
+                <i class="ri-qr-code-line fs-2"></i>
+            </div>
+            <h2 class="fw-bold fs-5 mb-0.5" style="color: var(--text-primary);">Two-Factor Authentication</h2>
+            <p class="text-muted small mb-0">Scan this QR code using Google Authenticator or an equivalent app:</p>
+        </div>
+
+        <!-- QR Code Display -->
+        <div class="text-center my-2.5">
+            <div class="qr-container">
+                <img src="data:image/png;base64,{{ qr_b64 }}" alt="2FA QR Code">
+            </div>
+        </div>
+
+        <!-- Error Alert -->
+        {% if error %}
+        <div class="alert alert-danger d-flex align-items-center gap-2 py-1.5 px-3 small mb-2" role="alert">
+            <i class="ri-error-warning-line fs-5"></i>
+            <div>{{ error }}</div>
+        </div>
+        {% endif %}
+
+        <!-- Verification Form -->
+        <form method="post" class="needs-validation">
+            {% csrf_token %}
+            
+            <div class="mb-2 text-start">
+                <label for="id_token" class="form-label fw-medium small mb-1" style="color: var(--text-primary);">
+                    Verification Code
+                </label>
+                <input type="text" 
+                       id="id_token"
+                       name="token" 
+                       class="form-control" 
+                       placeholder="••••••" 
+                       maxlength="6" 
+                       autocomplete="one-time-code" 
+                       required>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold mt-2" style="background-color: var(--color-primary); border: none;">
+                <i class="ri-shield-check-line me-1"></i> Verify & Enable 2FA
+            </button>
+        </form>
+
+        <!-- Secondary Link -->
+        <div class="text-center mt-2.5 pt-2 border-top" style="border-color: var(--border-color) !important;">
+            <p class="mb-0 small">
+                <a href="{% url 'dashboard' %}" class="text-decoration-none" style="color: var(--color-primary);">
+                    <i class="ri-arrow-left-line me-1"></i> Back to Dashboard
+                </a>
+            </p>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

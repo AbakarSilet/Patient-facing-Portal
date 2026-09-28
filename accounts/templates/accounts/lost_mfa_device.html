@@ -1,13 +1,129 @@
-<!-- accounts/templates/accounts/lost_mfa_device.html -->
-<p>Un code a été envoyé au {{ phone_masked }}.</p>
-{% if resent %}<p>Un nouveau code a été envoyé.</p>{% endif %}
-{% if error %}<p class="error">{{ error }}</p>{% endif %}
-<form method="post">
-    {% csrf_token %}
-    {{ form }}
-    <button type="submit">Réinitialiser mon authentification</button>
-</form>
-<form method="post">
-    {% csrf_token %}
-    <button type="submit" name="resend" value="1">Je n'ai pas reçu le code</button>
-</form>
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Reset MFA - Patient Portal{% endblock %}
+
+{% block style %}
+<style>
+    .auth-card {
+        max-width: 420px;
+        margin: 0.5rem auto;
+        padding: 1.25rem 1.5rem;
+        background-color: var(--bg-surface);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+    }
+    .auth-card .form-control {
+        background-color: var(--bg-body);
+        color: var(--text-primary);
+        border-color: var(--border-color);
+        text-align: center;
+        letter-spacing: 0.2rem;
+        font-size: 1.15rem;
+        font-weight: 600;
+        padding: 0.5rem;
+    }
+    .auth-card .form-control:focus {
+        background-color: var(--bg-body);
+        color: var(--text-primary);
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 0.25rem rgba(13, 148, 136, 0.15);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-center py-1">
+    <div class="auth-card w-100">
+        
+        <!-- Header Badge -->
+        <div class="text-center mb-3">
+            <div class="d-inline-flex align-items-center justify-content-center rounded-circle mb-2" 
+                 style="width: 56px; height: 56px; background-color: var(--color-primary-light); color: var(--color-primary);">
+                <i class="ri-smartphone-line fs-2"></i>
+            </div>
+            <h2 class="fw-bold fs-5 mb-1" style="color: var(--text-primary);">Lost Authenticator?</h2>
+            <p class="text-muted small mb-0">A verification code has been sent to <strong>{{ phone_masked }}</strong>.</p>
+        </div>
+
+        <!-- Success Alert (Resend) -->
+        {% if resent %}
+        <div class="alert alert-success d-flex align-items-center gap-2 py-1.5 px-3 small mb-2.5" role="alert">
+            <i class="ri-checkbox-circle-line fs-5"></i>
+            <div>A new verification code has been sent.</div>
+        </div>
+        {% endif %}
+
+        <!-- Error Alert -->
+        {% if error %}
+        <div class="alert alert-danger d-flex align-items-center gap-2 py-1.5 px-3 small mb-2.5" role="alert">
+            <i class="ri-error-warning-line fs-5"></i>
+            <div>{{ error }}</div>
+        </div>
+        {% endif %}
+
+        <!-- Main Form -->
+        <form method="post" class="needs-validation">
+            {% csrf_token %}
+            
+            {% if form.non_field_errors %}
+                <div class="alert alert-danger py-1.5 px-3 small mb-2.5">
+                    {{ form.non_field_errors.0 }}
+                </div>
+            {% endif %}
+
+            <!-- Form Fields -->
+            {% for field in form %}
+            <div class="mb-2.5 text-start">
+                <label for="{{ field.id_for_label }}" class="form-label fw-medium small mb-1" style="color: var(--text-primary);">
+                    {{ field.label }}
+                </label>
+                {{ field }}
+                {% if field.errors %}
+                    <div class="text-danger small mt-1">
+                        {{ field.errors.0 }}
+                    </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+
+            <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold mt-1" style="background-color: var(--color-primary); border: none;">
+                <i class="ri-shield-key-line me-1"></i> Reset MFA Authentication
+            </button>
+        </form>
+
+        <!-- Resend Code Option -->
+        <div class="text-center mt-2.5">
+            <form method="post" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" name="resend" value="1" class="btn btn-link p-0 text-decoration-none small" style="color: var(--color-primary);">
+                    <i class="ri-refresh-line me-1"></i> Didn't receive the code? Resend
+                </button>
+            </form>
+        </div>
+
+        <!-- Secondary Link -->
+        <div class="text-center mt-3 pt-2 border-top" style="border-color: var(--border-color) !important;">
+            <p class="mb-0 small">
+                <a href="{% url 'login' %}" class="text-decoration-none" style="color: var(--color-primary);">
+                    <i class="ri-arrow-left-line me-1"></i> Back to Sign In
+                </a>
+            </p>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block javascript %}
+<script>
+    // Amélioration UX pour le champ du code
+    document.querySelectorAll('.auth-card input[type="text"], .auth-card input[type="number"]').forEach(input => {
+        input.classList.add('form-control');
+        input.setAttribute('placeholder', '••••••');
+        input.setAttribute('autocomplete', 'one-time-code');
+        input.setAttribute('maxlength', '6');
+    });
+</script>
+{% endblock %}

@@ -1,2 +1,64 @@
-<!-- accounts/templates/accounts/lost_mfa_device_error.html -->
-<p class="error">{{ error }}</p>
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}MFA Recovery Error - Patient Portal{% endblock %}
+
+{% block style %}
+<style>
+    .auth-card {
+        max-width: 440px;
+        margin: 0.5rem auto;
+        padding: 1.25rem 1.5rem;
+        background-color: var(--bg-surface);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-center py-1">
+    <div class="auth-card w-100">
+        
+        <!-- Header Badge -->
+        <div class="text-center mb-2.5">
+            <div class="d-inline-flex align-items-center justify-content-center rounded-circle mb-1.5" 
+                 style="width: 52px; height: 52px; background-color: rgba(220, 53, 69, 0.1); color: #dc3545;">
+                <i class="ri-shield-cross-line fs-2"></i>
+            </div>
+            <h2 class="fw-bold fs-5 mb-0.5" style="color: var(--text-primary);">MFA Recovery Error</h2>
+            <p class="text-muted small mb-0">Unable to process your lost authenticator device request.</p>
+        </div>
+
+        <!-- Error Alert -->
+        {% if error %}
+        <div class="alert alert-danger d-flex align-items-center gap-2 py-2 px-3 small my-2.5" role="alert">
+            <i class="ri-error-warning-line fs-5 flex-shrink-0"></i>
+            <div>{{ error }}</div>
+        </div>
+        {% else %}
+        <div class="alert alert-danger d-flex align-items-center gap-2 py-2 px-3 small my-2.5" role="alert">
+            <i class="ri-error-warning-line fs-5 flex-shrink-0"></i>
+            <div>An unexpected error occurred during two-factor authentication recovery.</div>
+        </div>
+        {% endif %}
+
+        <!-- Support Assistance Callout -->
+        <div class="p-2.5 rounded bg-body-tertiary border mb-3 small text-muted text-center" style="border-color: var(--border-color) !important;">
+            <i class="ri-customer-service-2-line me-1 text-primary"></i>
+            Need help recovering account access? Please contact the hospital reception or IT support desk with valid identification.
+        </div>
+
+        <!-- Secondary Link -->
+        <div class="text-center pt-2 border-top" style="border-color: var(--border-color) !important;">
+            <p class="mb-0 small">
+                <a href="{% url 'login' %}" class="text-decoration-none" style="color: var(--color-primary);">
+                    <i class="ri-arrow-left-line me-1"></i> Return to Sign In
+                </a>
+            </p>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

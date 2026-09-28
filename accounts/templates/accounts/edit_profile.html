@@ -1,7 +1,117 @@
-<!-- accounts/templates/accounts/edit_profile.html -->
-<form method="post">
-    {% csrf_token %}
-    {{ form.non_field_errors }}
-    {{ form }}
-    <button type="submit">Enregistrer</button>
-</form>
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Edit Profile - Patient Portal{% endblock %}
+
+{% block style %}
+<style>
+    .auth-card {
+        max-width: 460px;
+        margin: 0.5rem auto;
+        padding: 1.25rem 1.5rem;
+        background-color: var(--bg-surface);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+    }
+    .auth-card .form-control, 
+    .auth-card .form-select {
+        background-color: var(--bg-body);
+        color: var(--text-primary);
+        border-color: var(--border-color);
+        padding: 0.45rem 0.75rem;
+        font-size: 0.875rem;
+    }
+    .auth-card .form-control:focus, 
+    .auth-card .form-select:focus {
+        background-color: var(--bg-body);
+        color: var(--text-primary);
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 0.25rem rgba(13, 148, 136, 0.15);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-center py-1">
+    <div class="auth-card w-100">
+        
+        <!-- Header Badge -->
+        <div class="text-center mb-2.5">
+            <div class="d-inline-flex align-items-center justify-content-center rounded-circle mb-1.5" 
+                 style="width: 52px; height: 52px; background-color: var(--color-primary-light); color: var(--color-primary);">
+                <i class="ri-user-settings-line fs-3"></i>
+            </div>
+            <h2 class="fw-bold fs-5 mb-0.5" style="color: var(--text-primary);">Edit Profile</h2>
+            <p class="text-muted small mb-0">Update your account details and preferences</p>
+        </div>
+
+        <!-- Error Alert -->
+        {% if error %}
+        <div class="alert alert-danger d-flex align-items-center gap-2 py-1.5 px-3 small mb-2" role="alert">
+            <i class="ri-error-warning-line fs-5"></i>
+            <div>{{ error }}</div>
+        </div>
+        {% endif %}
+
+        <!-- Form -->
+        <form method="post" class="needs-validation">
+            {% csrf_token %}
+            
+            {% if form.non_field_errors %}
+                <div class="alert alert-danger py-1.5 px-3 small mb-2">
+                    {{ form.non_field_errors.0 }}
+                </div>
+            {% endif %}
+
+            <!-- Dynamic Field Rendering -->
+            {% for field in form %}
+            <div class="mb-2 text-start">
+                <label for="{{ field.id_for_label }}" class="form-label fw-medium small mb-1" style="color: var(--text-primary);">
+                    {{ field.label }}
+                </label>
+                {{ field }}
+                {% if field.help_text %}
+                    <div class="form-text small opacity-75" style="font-size: 0.75rem;">{{ field.help_text }}</div>
+                {% endif %}
+                {% if field.errors %}
+                    <div class="text-danger small mt-0.5">{{ field.errors.0 }}</div>
+                {% endif %}
+            </div>
+            {% endfor %}
+
+            <div class="d-flex gap-2 mt-3">
+                <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary w-50 py-2 fw-semibold small">
+                    Cancel
+                </a>
+                <button type="submit" class="btn btn-primary w-50 py-2 fw-semibold small" style="background-color: var(--color-primary); border: none;">
+                    <i class="ri-save-line me-1"></i> Save Changes
+                </button>
+            </div>
+        </form>
+
+        <!-- Secondary Navigation -->
+        <div class="text-center mt-2.5 pt-2 border-top" style="border-color: var(--border-color) !important;">
+            <p class="mb-0 small">
+                <a href="{% url 'change_password' %}" class="text-decoration-none" style="color: var(--color-primary);">
+                    <i class="ri-lock-password-line me-1"></i> Want to change your password?
+                </a>
+            </p>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block javascript %}
+<script>
+    // Applique le style Bootstrap à tous les champs de formulaire
+    document.querySelectorAll('.auth-card input[type="text"], .auth-card input[type="email"], .auth-card input[type="tel"], .auth-card input[type="date"]').forEach(input => {
+        input.classList.add('form-control');
+    });
+
+    document.querySelectorAll('.auth-card select').forEach(select => {
+        select.classList.add('form-select');
+    });
+</script>
+{% endblock %}

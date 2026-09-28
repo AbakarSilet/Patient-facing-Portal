@@ -1,3 +1,59 @@
-<!-- accounts/templates/accounts/deletion_requested.html -->
-<p>Votre compte sera définitivement effacé le {{ scheduled_for|date:"d/m/Y" }}.
-Contactez l'accueil si ce n'est pas vous qui avez fait cette demande.</p>
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Account Deletion Pending - Patient Portal{% endblock %}
+
+{% block style %}
+<style>
+    .auth-card {
+        max-width: 440px;
+        margin: 0.5rem auto;
+        padding: 1.25rem 1.5rem;
+        background-color: var(--bg-surface);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-center py-1">
+    <div class="auth-card w-100">
+        
+        <!-- Header Badge -->
+        <div class="text-center mb-2.5">
+            <div class="d-inline-flex align-items-center justify-content-center rounded-circle mb-1.5" 
+                 style="width: 52px; height: 52px; background-color: rgba(220, 53, 69, 0.1); color: #dc3545;">
+                <i class="ri-time-line fs-2"></i>
+            </div>
+            <h2 class="fw-bold fs-5 mb-0.5" style="color: var(--text-primary);">Deletion Scheduled</h2>
+            <p class="text-muted small mb-0">Your request has been received and scheduled.</p>
+        </div>
+
+        <!-- Scheduled Date Notice -->
+        <div class="alert alert-warning d-flex align-items-start gap-2 py-2.5 px-3 small my-2.5" role="alert">
+            <i class="ri-alert-line fs-5 flex-shrink-0 mt-0.5" style="color: #b45309;"></i>
+            <div>
+                Your account and personal data are scheduled to be permanently erased on <strong>{{ scheduled_for|date:"N j, Y" }}</strong>.
+            </div>
+        </div>
+
+        <!-- Support Info Callout -->
+        <div class="p-2.5 rounded bg-body-tertiary border mb-3 small text-muted text-center" style="border-color: var(--border-color) !important;">
+            <i class="ri-customer-service-2-line me-1 text-primary"></i>
+            If you did not initiate this request, please contact reception or system administrators immediately to cancel deletion.
+        </div>
+
+        <!-- Secondary Link -->
+        <div class="text-center pt-2 border-top" style="border-color: var(--border-color) !important;">
+            <p class="mb-0 small">
+                <a href="{% url 'login' %}" class="text-decoration-none" style="color: var(--color-primary);">
+                    <i class="ri-arrow-left-line me-1"></i> Return to Sign In
+                </a>
+            </p>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
