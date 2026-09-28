@@ -1,31 +1,232 @@
-{% if error %}<p style="color:red">{{ error }}</p>{% endif %}
+{% extends 'base.html' %}
+{% load static %}
 
-<h1>Mes résultats de laboratoire</h1>
-{% if lab_results %}
-<table border="1" cellpadding="6">
-  <tr><th>Examen</th><th>Valeur</th><th>Unité</th><th>Date</th><th>Statut</th></tr>
-  {% for r in lab_results %}
-  <tr>
-    <td>{{ r.code }}</td><td>{{ r.value }}</td><td>{{ r.unit }}</td>
-    <td>{{ r.effective_datetime }}</td><td>{{ r.status }}</td>
-  </tr>
-  {% endfor %}
-</table>
-{% else %}
-<p>Aucun résultat de laboratoire disponible.</p>
-{% endif %}
+{% block title %}My Health Records - ABU Patient Portal{% endblock %}
 
-<h1>Mes allergies</h1>
-{% if allergies %}
-<table border="1" cellpadding="6">
-  <tr><th>Substance</th><th>Statut</th><th>Criticité</th><th>Manifestations</th><th>Sévérité</th><th>Date</th></tr>
-  {% for a in allergies %}
-  <tr>
-    <td>{{ a.substance }}</td><td>{{ a.clinical_status }}</td><td>{{ a.criticality }}</td>
-    <td>{{ a.manifestations }}</td><td>{{ a.severity }}</td><td>{{ a.recorded_date }}</td>
-  </tr>
-  {% endfor %}
-</table>
-{% else %}
-<p>Aucune allergie enregistrée.</p>
-{% endif %}
+{% block style %}
+<style>
+    .records-container {
+        max-width: 900px;
+        margin: 0.5rem auto;
+    }
+    .record-card {
+        background-color: var(--bg-surface);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+    }
+    .table > :not(caption) > * > * {
+        padding: 0.65rem 0.85rem;
+        background-color: transparent;
+        color: var(--text-primary);
+        border-bottom-color: var(--border-color);
+    }
+    .badge-status {
+        font-size: 0.725rem;
+        font-weight: 600;
+        padding: 0.25rem 0.5rem;
+        border-radius: 50rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="records-container py-1">
+    
+    <!-- Page Header -->
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <div class="d-flex align-items-center gap-2.5">
+            <div class="d-inline-flex align-items-center justify-content-center rounded-circle" 
+                 style="width: 44px; height: 44px; background-color: var(--color-primary-light); color: var(--color-primary);">
+                <i class="ri-file-list-3-line fs-4"></i>
+            </div>
+            <div>
+                <h1 class="fw-bold fs-5 mb-0" style="color: var(--text-primary);">Medical Records & History</h1>
+                <p class="text-muted small mb-0">View your verified clinical lab results and recorded allergies</p>
+            </div>
+        </div>
+        <a href="{% url 'dashboard' %}" class="btn btn-sm btn-outline-secondary">
+            <i class="ri-arrow-left-line me-1"></i> Dashboard
+        </a>
+    </div>
+
+    <!-- Error Alert -->
+    {% if error %}
+    <div class="alert alert-danger d-flex align-items-center gap-2 py-2 px-3 small mb-3" role="alert">
+        <i class="ri-error-warning-line fs-5 flex-shrink-0"></i>
+        <div>{{ error }}</div>
+    </div>
+    {% endif %}
+
+    <!-- 1. Laboratory Results -->
+    <div class="record-card mb-4 overflow-hidden">
+        <div class="p-3 border-bottom d-flex align-items-center justify-content-between bg-body-tertiary" style="border-color: var(--border-color) !important;">
+            <div class="d-flex align-items-center gap-2">
+                <i class="ri-flask-line fs-5 text-primary"></i>
+                <h2 class="fw-semibold fs-6 mb-0" style="color: var(--text-primary);">Laboratory Test Results</h2>
+            </div>
+            {% if lab_results %}
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill small fw-normal">
+                    {{ lab_results|length }} Recorded
+                </span>
+            {% endif %}
+        </div>
+
+        {% if lab_results %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 small">
+                <thead class="table-light border-bottom">
+                    <tr>
+                        <th scope="col" class="fw-semibold">Test / Parameter</th>
+                        <th scope="col" class="fw-semibold">Result</th>
+                        <th scope="col" class="fw-semibold">Unit</th>
+                        <th scope="col" class="fw-semibold">Effective Date</th>
+                        <th scope="col" class="fw-semibold text-end">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in lab_results %}
+                    <tr>
+                        <td class="fw-medium text-primary-emphasis">{{ r.code }}</td>
+                        <td class="fw-bold">{{ r.value }}</td>
+                        <td class="text-muted">{{ r.unit|default:"—" }}</td>
+                        <td class="text-muted">{{ r.effective_datetime}}</td>
+                        <td class="text-end">
+                            <span class="badge badge-status bg-success-subtle text-success border border-success-subtle">
+                                {{ r.status|capfirst }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-4 px-3">
+            <i class="ri-flask-line fs-2 text-muted opacity-50 mb-1 d-block"></i>
+            <p class="text-muted small mb-0">No laboratory test results available at this time.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- 2. Allergies & Sensitivities -->
+    <div class="record-card mb-3 overflow-hidden">
+        <div class="p-3 border-bottom d-flex align-items-center justify-content-between bg-body-tertiary" style="border-color: var(--border-color) !important;">
+            <div class="d-flex align-items-center gap-2">
+                <i class="ri-shield-cross-line fs-5 text-danger"></i>
+                <h2 class="fw-semibold fs-6 mb-0" style="color: var(--text-primary);">Allergies & Sensitivities</h2>
+            </div>
+            {% if allergies %}
+                <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill small fw-normal">
+                    {{ allergies|length }} Recorded
+                </span>
+            {% endif %}
+        </div>
+
+        {% if allergies %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 small">
+                <thead class="table-light border-bottom">
+                    <tr>
+                        <th scope="col" class="fw-semibold">Substance</th>
+                        <th scope="col" class="fw-semibold">Clinical Status</th>
+                        <th scope="col" class="fw-semibold">Criticality</th>
+                        <th scope="col" class="fw-semibold">Manifestations</th>
+                        <th scope="col" class="fw-semibold">Severity</th>
+                        <th scope="col" class="fw-semibold text-end">Recorded Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for a in allergies %}
+                    <tr>
+                        <td class="fw-bold text-danger-emphasis">{{ a.substance }}</td>
+                        <td>
+                            <span class="badge badge-status bg-info-subtle text-info-emphasis border border-info-subtle">
+                                {{ a.clinical_status|capfirst }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge badge-status {% if a.criticality == 'high' %}bg-danger-subtle text-danger border border-danger-subtle{% else %}bg-secondary-subtle text-secondary border{% endif %}">
+                                {{ a.criticality|capfirst }}
+                            </span>
+                        </td>
+                        <td class="text-muted">{{ a.manifestations|default:"—" }}</td>
+                        <td>
+                            <span class="fw-medium text-capitalize">{{ a.severity|default:"—" }}</span>
+                        </td>
+                        <td class="text-muted text-end">{{ a.recorded_date|date:"N j, Y" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-4 px-3">
+            <i class="ri-shield-check-line fs-2 text-success opacity-75 mb-1 d-block"></i>
+            <p class="text-muted small mb-0">No known allergies or adverse reactions on record.</p>
+        </div>
+        {% endif %}
+    </div>
+
+        <!-- 3. Encounters -->
+    <div class="record-card mb-3 overflow-hidden">
+        <div class="p-3 border-bottom d-flex align-items-center justify-content-between bg-body-tertiary" style="border-color: var(--border-color) !important;">
+            <div class="d-flex align-items-center gap-2">
+                <i class="ri-shield-cross-line fs-5 text-danger"></i>
+                <h2 class="fw-semibold fs-6 mb-0" style="color: var(--text-primary);">Encounters</h2>
+            </div>
+            {% if encounters %}
+                <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill small fw-normal">
+                    {{ encounters|length }} Recorded
+                </span>
+            {% endif %}
+        </div>
+
+        {% if encounters %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 small">
+                <thead class="table-light border-bottom">
+                    <tr>
+                        <th scope="col" class="fw-semibold">Substance</th>
+                        <th scope="col" class="fw-semibold">Clinical Status</th>
+                        <th scope="col" class="fw-semibold">Criticality</th>
+                        <th scope="col" class="fw-semibold">Manifestations</th>
+                        <th scope="col" class="fw-semibold">Severity</th>
+                        <th scope="col" class="fw-semibold text-end">Recorded Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for e in encounters %}
+                    <tr>
+                        <td class="fw-bold text-danger-emphasis">{{ e.type }}</td>
+                        <td>
+                            <span class="badge badge-status bg-info-subtle text-info-emphasis border border-info-subtle">
+                                {{ e.status|capfirst }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge badge-status {% if e.criticality == 'high' %}bg-danger-subtle text-danger border border-danger-subtle{% else %}bg-secondary-subtle text-secondary border{% endif %}">
+                                {{ e.criticality|capfirst }}
+                            </span>
+                        </td>
+                        <td class="text-muted">{{ e.manifestations|default:"—" }}</td>
+                        <td>
+                            <span class="fw-medium text-capitalize">{{ e.severity|default:"—" }}</span>
+                        </td>
+                        <td class="text-muted text-end">{{ e.recorded_date }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-4 px-3">
+            <i class="ri-shield-check-line fs-2 text-success opacity-75 mb-1 d-block"></i>
+            <p class="text-muted small mb-0">No known encounters on record.</p>
+        </div>
+        {% endif %}
+    </div>
+
+
+</div>
+{% endblock %}

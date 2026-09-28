@@ -1,0 +1,10 @@
+<h1>Demander un rendez-vous</h1>
+{% if error %}<p style="color:red">{{ error }}</p>{% endif %}
+{% if success %}<p style="color:green">Demande envoyée — statut : en attente de confirmation par le personnel.</p>{% endif %}
+{% if form %}
+<form method="post">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <button type="submit">Envoyer la demande</button>
+</form>
+{% endif %}

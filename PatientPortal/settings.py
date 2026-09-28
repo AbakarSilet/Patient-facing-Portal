@@ -181,3 +181,5 @@ DATABASES["default"].setdefault("OPTIONS", {})["options"] = "-c statement_timeou
 #         "LOCATION": "redis://127.0.0.1:6379/1",
 #     }
 # }
+
+CA_BUNDLE_PATH = config('OPENMRS_CA_BUNDLE_PATH', default=None)
