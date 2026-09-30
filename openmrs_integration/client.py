@@ -114,7 +114,9 @@ class OpenMRSClient:
         return self._request("GET", url).json()
 
 
-    def create_appointment_request(self, patient_uuid, appointment_type_uuid, notes=""):
+    def create_appointment_request(self, patient_uuid, appointment_type_uuid, notes="",
+                                     min_timeframe_value=None, min_timeframe_units=None,
+                                     max_timeframe_value=None, max_timeframe_units=None):
         url = f"{BASE_URL}/ws/rest/v1/appointmentscheduling/appointmentrequest"
         now = datetime.now(timezone.utc)
         requested_on = now.strftime('%Y-%m-%dT%H:%M:%S.') + f'{now.microsecond // 1000:03d}' + now.strftime('%z')
@@ -125,14 +127,23 @@ class OpenMRSClient:
             "requestedOn": requested_on,
             "notes": notes,
         }
+        if min_timeframe_value is not None and min_timeframe_units:
+            payload["minTimeFrameValue"] = min_timeframe_value
+            payload["minTimeFrameUnits"] = min_timeframe_units
+        if max_timeframe_value is not None and max_timeframe_units:
+            payload["maxTimeFrameValue"] = max_timeframe_value
+            payload["maxTimeFrameUnits"] = max_timeframe_units
         return self._request("POST", url, json=payload).json()
-
+    
     def get_appointment_requests_for_patient(self, patient_uuid):
         url = f"{BASE_URL}/ws/rest/v1/appointmentscheduling/appointmentrequest"
         response = self._request("GET", url, params={"v": "full"})
         all_requests = response.json().get("results", [])
         return [r for r in all_requests if r.get("patient", {}).get("uuid") == patient_uuid]
 
+    def cancel_appointment_request(self, request_uuid):
+        url = f"{BASE_URL}/ws/rest/v1/appointmentscheduling/appointmentrequest/{request_uuid}"
+        return self._request("POST", url, json={"status": "CANCELLED"}).json()
 
 class OpenMRSUnavailableError(Exception):
     """

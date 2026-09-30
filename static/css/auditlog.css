@@ -1,0 +1,92 @@
+/* auditlog/static/auditlog/auditlog.css
+   Branche les composants Bootstrap sur variables.css (thème clair/sombre). */
+
+.audit-table {
+    --bs-table-bg: transparent;
+    --bs-table-color: var(--text-primary);
+    --bs-table-border-color: var(--border-color);
+    --bs-table-hover-bg: var(--bg-surface-hover);
+    --bs-table-hover-color: var(--text-primary);
+    margin-bottom: 0;
+    font-size: var(--font-size-sm);
+}
+
+.audit-table thead th {
+    color: var(--text-secondary);
+    font-weight: var(--font-weight-semibold);
+    white-space: nowrap;
+}
+
+.audit-table .mono {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+}
+
+.audit-table a {
+    color: var(--color-primary);
+    text-decoration: none;
+}
+
+.audit-table a:hover {
+    text-decoration: underline;
+}
+
+/* Badges de statut */
+.audit-badge {
+    display: inline-block;
+    padding: 0.15rem 0.6rem;
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+}
+
+.audit-badge.ok   { background: var(--color-success-light); color: #065f46; }
+.audit-badge.fail { background: var(--color-danger-light);  color: #991b1b; }
+.audit-badge.warn { background: var(--color-warning-light); color: #92400e; }
+
+/* Filtres */
+.audit-filters .form-control,
+.audit-filters .form-select {
+    background-color: var(--bg-surface);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+.audit-filters .form-control:focus,
+.audit-filters .form-select:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 0.2rem var(--color-primary-light);
+}
+
+.audit-filters .btn-outline-secondary {
+    color: var(--text-secondary);
+    border-color: var(--border-color);
+}
+
+.audit-filters .btn-outline-secondary:hover {
+    background-color: var(--bg-surface-hover);
+    color: var(--text-primary);
+}
+
+/* Pagination */
+.pagination {
+    --bs-pagination-bg: var(--bg-surface);
+    --bs-pagination-color: var(--color-primary);
+    --bs-pagination-border-color: var(--border-color);
+    --bs-pagination-hover-bg: var(--bg-surface-hover);
+    --bs-pagination-hover-color: var(--color-primary-hover);
+    --bs-pagination-hover-border-color: var(--border-color);
+    --bs-pagination-disabled-bg: var(--bg-surface);
+    --bs-pagination-disabled-color: var(--text-muted);
+    --bs-pagination-disabled-border-color: var(--border-color);
+}
+
+/* Cartes de stats (dashboard) */
+.audit-stat .stat-value {
+    font-size: var(--font-size-4xl);
+    font-weight: var(--font-weight-extrabold);
+    line-height: var(--line-height-tight);
+}
+
+.audit-stat.danger .stat-value  { color: var(--color-danger); }
+.audit-stat.warning .stat-value { color: var(--color-warning); }

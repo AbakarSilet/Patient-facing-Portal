@@ -1,0 +1,25 @@
+<h1>Mes demandes de rendez-vous</h1>
+{% if request.GET.error == "unavailable" %}<p style="color:red">Service temporairement indisponible.</p>{% endif %}
+{% if request.GET.error == "not_pending" %}<p style="color:red">Cette demande n'est plus annulable.</p>{% endif %}
+{% if error %}<p style="color:red">{{ error }}</p>{% endif %}
+{% if requests %}
+<table border="1" cellpadding="6">
+  <tr><th>Type</th><th>Statut</th><th>Demandé le</th><th>Fenêtre souhaitée</th><th>Motif</th><th></th></tr>
+  {% for r in requests %}
+  <tr>
+    <td>{{ r.appointment_type }}</td><td>{{ r.status }}</td><td>{{ r.requested_on }}</td>
+    <td>{{ r.timeframe }}</td><td>{{ r.notes }}</td>
+    <td>
+      {% if r.status == "PENDING" %}
+      <form method="post" action="{% url 'cancel_appointment_request' r.uuid %}">
+        {% csrf_token %}<button type="submit">Annuler</button>
+      </form>
+      {% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p>Aucune demande de rendez-vous pour le moment.</p>
+{% endif %}
+<a href="{% url 'request_appointment' %}">Nouvelle demande</a>

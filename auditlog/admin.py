@@ -1,19 +1,11 @@
-# auditlog/admin.py
-
 from django.contrib import admin
-from .models import AuditLogEntry
+
+from .models import AuditLogEntry, OpenMRSRequestLog
 
 
-@admin.register(AuditLogEntry)
-class AuditLogEntryAdmin(admin.ModelAdmin):
-    list_display = ("timestamp", "user", "action_type", "status", "target_reference", "ip_address")
-    list_filter = ("action_type", "status")
-    search_fields = ("user__username", "target_reference", "ip_address")
-    date_hierarchy = "timestamp"
-    readonly_fields = [f.name for f in AuditLogEntry._meta.fields]
+class ReadOnlyAdmin(admin.ModelAdmin):
+    """Un journal d'audit ne se modifie ni ne se supprime, même depuis l'admin."""
 
-    # Un journal d'audit ne se modifie ni ne se supprime depuis l'admin —
-    # cohérent avec on_delete=PROTECT sur `user` dans le modèle.
     def has_add_permission(self, request):
         return False
 
@@ -24,3 +16,18 @@ class AuditLogEntryAdmin(admin.ModelAdmin):
         return False
 
 
+@admin.register(AuditLogEntry)
+class AuditLogEntryAdmin(ReadOnlyAdmin):
+    list_display = ("timestamp", "user", "username_snapshot", "action_type", "status", "ip_address")
+    list_filter = ("action_type", "status")
+    search_fields = ("user__username", "username_snapshot", "ip_address", "target_reference")
+    date_hierarchy = "timestamp"
+    list_select_related = ("user",)
+
+
+@admin.register(OpenMRSRequestLog)
+class OpenMRSRequestLogAdmin(ReadOnlyAdmin):
+    list_display = ("timestamp", "method", "endpoint", "status_code", "duration_ms")
+    list_filter = ("method", "status_code")
+    search_fields = ("endpoint",)
+    date_hierarchy = "timestamp"

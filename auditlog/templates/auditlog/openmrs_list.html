@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}OpenMRS Requests - Patient Portal{% endblock %}
+
+{% block style %}
+<link rel="stylesheet" href="{% static 'css/auditlog.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+    <div>
+        <h1 class="h3 mb-1">OpenMRS Requests</h1>
+        <p class="text-muted mb-0">{{ paginator.count|default:0 }} outbound call{{ paginator.count|pluralize }}</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'auditlog:dashboard' %}" class="btn btn-outline-secondary">
+            <i class="ri-dashboard-line"></i> Dashboard
+        </a>
+        <a href="{% url 'auditlog:entry_list' %}" class="btn btn-outline-secondary">
+            <i class="ri-list-check-2"></i> Audit log
+        </a>
+    </div>
+</div>
+
+{% url 'auditlog:openmrs_export' as export_url %}
+{% include "auditlog/_filter_form.html" with export_url=export_url %}
+
+<div class="card-custom">
+    <div class="table-responsive">
+        <table class="table table-hover audit-table align-middle">
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>Method</th>
+                    <th>Endpoint</th>
+                    <th>Result</th>
+                    <th class="text-end">Duration</th>
+                    <th>Visitor IP</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in requests %}
+                    <tr>
+                        <td class="mono text-nowrap">{{ r.timestamp|date:"Y-m-d H:i:s" }}</td>
+                        <td class="mono">{{ r.method }}</td>
+                        <td class="mono text-break">{{ r.endpoint }}</td>
+                        <td>
+                            {% if r.status_code is None %}
+                                <span class="audit-badge fail">No response</span>
+                            {% elif r.status_code >= 500 %}
+                                <span class="audit-badge fail">{{ r.status_code }}</span>
+                            {% elif r.status_code >= 400 %}
+                                <span class="audit-badge warn">{{ r.status_code }}</span>
+                            {% else %}
+                                <span class="audit-badge ok">{{ r.status_code }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end mono text-nowrap">
+                            {% if r.duration_ms is not None %}{{ r.duration_ms }} ms{% else %}&mdash;{% endif %}
+                        </td>
+                        <td class="mono">{{ r.triggered_by_ip|default:"—" }}</td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">
+                            No requests match these filters.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% include "auditlog/_pagination.html" %}
+</div>
+{% endblock %}

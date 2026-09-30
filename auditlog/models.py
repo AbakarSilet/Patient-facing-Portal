@@ -21,19 +21,23 @@ class AuditLogEntry(models.Model):
         PASSWORD_RESET_LOCKED = "PASSWORD_RESET_LOCKED", "Password reset OTP attempts exhausted"
         PASSWORD_RESET_SUCCESS = "PASSWORD_RESET_SUCCESS", "Password reset succeeded"
         PASSWORD_RESET_IDENTITY_FAILED = "PASSWORD_RESET_IDENTITY_FAILED", "Password reset identity check failed"
-        USERNAME_CHANGED = "USERNAME_CHANGED", "Nom d'utilisateur modifié"
-        PASSWORD_CHANGED = "PASSWORD_CHANGED", "Mot de passe modifié depuis le profil"
-        PROFILE_UPDATED = "PROFILE_UPDATED", "Informations de profil modifiées"
-        DATA_ERASURE_REQUESTED = "DATA_ERASURE_REQUESTED", "Suppression de compte demandée (NDPA)"
-        DATA_ERASURE_COMPLETED = "DATA_ERASURE_COMPLETED", "Compte anonymisé après délai de grâce"
-        DATA_ERASURE_CANCELLED = "DATA_ERASURE_CANCELLED", "Demande de suppression annulée"
-        MFA_RECOVERY_OTP_SENT = "MFA_RECOVERY_OTP_SENT", "Code de récupération MFA envoyé"
-        MFA_RECOVERY_OTP_FAILED = "MFA_RECOVERY_OTP_FAILED", "Code de récupération MFA invalide"
-        MFA_RECOVERY_OTP_LOCKED = "MFA_RECOVERY_OTP_LOCKED", "Récupération MFA verrouillée (tentatives épuisées)"
-        MFA_DEVICE_RESET = "MFA_DEVICE_RESET", "Device TOTP réinitialisé après perte"
-        LOGIN_OTP_LOCKED = "LOGIN_OTP_LOCKED", "Verrouillage TOTP au login (tentatives épuisées)"
-        CONSENT_RECORDED = "CONSENT_RECORDED", "Consentement à la politique de confidentialité enregistré"
-        MFA_ENROLLMENT_FAILED = "MFA_ENROLLMENT_FAILED", "Code TOTP invalide à l'enrôlement"
+        USERNAME_CHANGED = "USERNAME_CHANGED", "Username changed"
+        PASSWORD_CHANGED = "PASSWORD_CHANGED", "Password changed from profile"
+        PROFILE_UPDATED = "PROFILE_UPDATED", "Profile information updated"
+        DATA_ERASURE_REQUESTED = "DATA_ERASURE_REQUESTED", "Account deletion requested (NDPA)"
+        DATA_ERASURE_COMPLETED = "DATA_ERASURE_COMPLETED", "Account anonymized after grace period"
+        DATA_ERASURE_CANCELLED = "DATA_ERASURE_CANCELLED", "Deletion request cancelled"
+        MFA_RECOVERY_OTP_SENT = "MFA_RECOVERY_OTP_SENT", "MFA recovery code sent"
+        MFA_RECOVERY_OTP_FAILED = "MFA_RECOVERY_OTP_FAILED", "Invalid MFA recovery code"
+        MFA_RECOVERY_OTP_LOCKED = "MFA_RECOVERY_OTP_LOCKED", "MFA recovery locked (attempts exhausted)"
+        MFA_DEVICE_RESET = "MFA_DEVICE_RESET", "TOTP device reset after loss"
+        LOGIN_OTP_LOCKED = "LOGIN_OTP_LOCKED", "TOTP login locked (attempts exhausted)"
+        CONSENT_RECORDED = "CONSENT_RECORDED", "Privacy policy consent recorded"
+        MFA_ENROLLMENT_FAILED = "MFA_ENROLLMENT_FAILED", "Invalid TOTP code during enrollment"
+        AUDIT_LOG_EXPORTED = "AUDIT_LOG_EXPORTED", "Audit logs exported"
+        AUDIT_LOG_VIEWED = "AUDIT_LOG_VIEWED", "Audit logs viewed"
+        VIEW_APPOINTMENTS = "VIEW_APPOINTMENTS", "Viewed appointment requests"
+        CANCEL_APPOINTMENT_REQUEST = "CANCEL_APPOINTMENT_REQUEST", "Cancelled appointment request"
 
 
 
@@ -54,11 +58,25 @@ class AuditLogEntry(models.Model):
     timestamp = models.DateTimeField(auto_now_add=True)
     ip_address = models.GenericIPAddressField()
     status = models.CharField(max_length=10, choices=Status.choices)
+    username_snapshot = models.CharField(max_length=150, blank=True)
+
 
     def __str__(self):
         return f"{self.timestamp} - {self.user} - {self.action_type} - {self.status}"
 
-# auditlog/models.py
+    def save(self, *args, **kwargs):
+        # Rempli automatiquement : aucun point d'appel existant à modifier.
+        if self._state.adding and self.user_id and not self.username_snapshot:
+            self.username_snapshot = self.user.get_username()
+        super().save(*args, **kwargs)
+
+    class Meta:
+        ordering = ["-timestamp"]
+        indexes = [
+            models.Index(fields=["user", "-timestamp"]),
+            models.Index(fields=["action_type", "-timestamp"]),
+        ]
+
 
 class OpenMRSRequestLog(models.Model):
     """
@@ -71,6 +89,9 @@ class OpenMRSRequestLog(models.Model):
     status_code = models.PositiveSmallIntegerField(null=True, blank=True)  # null si exception réseau avant réponse
     duration_ms = models.PositiveIntegerField(null=True, blank=True)
     triggered_by_ip = models.GenericIPAddressField(null=True, blank=True)  # IP du visiteur à l'origine de l'appel, si connue
+
+    class Meta:
+        ordering = ["-timestamp"]
 
     def __str__(self):
         return f"{self.timestamp} {self.method} {self.endpoint} -> {self.status_code}"

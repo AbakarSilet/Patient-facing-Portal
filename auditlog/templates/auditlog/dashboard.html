@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Audit Dashboard - Patient Portal{% endblock %}
+
+{% block style %}
+<link rel="stylesheet" href="{% static 'css/auditlog.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+    <div>
+        <h1 class="h3 mb-1">Audit Dashboard</h1>
+        <p class="text-muted mb-0">Activity over the last 24 hours</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'auditlog:entry_list' %}" class="btn-custom-primary">
+            <i class="ri-list-check-2"></i> Audit log
+        </a>
+        <a href="{% url 'auditlog:openmrs_list' %}" class="btn-custom-primary">
+            <i class="ri-server-line"></i> OpenMRS requests
+        </a>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-lg-3">
+        <a href="{% url 'auditlog:entry_list' %}?action_type=LOGIN_FAILED" class="text-decoration-none">
+            <div class="card-custom audit-stat danger interactive-card h-100">
+                <div class="text-muted small">Failed logins</div>
+                <div class="stat-value">{{ failed_logins }}</div>
+            </div>
+        </a>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <a href="{% url 'auditlog:entry_list' %}?action_type=REGISTRATION_OTP_LOCKED&amp;action_type=PASSWORD_RESET_LOCKED&amp;action_type=MFA_RECOVERY_OTP_LOCKED&amp;action_type=LOGIN_OTP_LOCKED" class="text-decoration-none">
+            <div class="card-custom audit-stat warning interactive-card h-100">
+                <div class="text-muted small">OTP / MFA lockouts</div>
+                <div class="stat-value">{{ lockouts }}</div>
+            </div>
+        </a>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <a href="{% url 'auditlog:entry_list' %}?action_type=DATA_ERASURE_REQUESTED" class="text-decoration-none">
+            <div class="card-custom audit-stat interactive-card h-100">
+                <div class="text-muted small">Erasure requests</div>
+                <div class="stat-value">{{ erasure_requests }}</div>
+            </div>
+        </a>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <a href="{% url 'auditlog:openmrs_list' %}" class="text-decoration-none">
+            <div class="card-custom audit-stat danger interactive-card h-100">
+                <div class="text-muted small">OpenMRS errors</div>
+                <div class="stat-value">{{ openmrs_errors }}</div>
+            </div>
+        </a>
+    </div>
+</div>
+
+<div class="card-custom">
+    <h2 class="h6 mb-3">Top IP addresses by failed events</h2>
+    {% if top_failing_ips %}
+        <div class="table-responsive">
+            <table class="table table-hover audit-table align-middle">
+                <thead>
+                    <tr><th>IP address</th><th class="text-end">Failures</th></tr>
+                </thead>
+                <tbody>
+                    {% for row in top_failing_ips %}
+                        <tr>
+                            <td class="mono">
+                                <a href="{% url 'auditlog:entry_list' %}?ip_address={{ row.ip_address|urlencode }}&amp;status=FAILURE">{{ row.ip_address }}</a>
+                            </td>
+                            <td class="text-end">{{ row.n }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="text-muted mb-0">No failed events in the last 24 hours.</p>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Audit Log{% if target_user %} - {{ target_user }}{% endif %} - Patient Portal{% endblock %}
+
+{% block style %}
+<link rel="stylesheet" href="{% static 'css/auditlog.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+    <div>
+        <h1 class="h3 mb-1">
+            Audit Log{% if target_user %} <span class="text-muted">/ {{ target_user }}</span>{% endif %}
+        </h1>
+        <p class="text-muted mb-0">{{ paginator.count|default:0 }} event{{ paginator.count|pluralize }}</p>
+    </div>
+    <div class="d-flex gap-2">
+        {% if target_user %}
+            <a href="{% url 'auditlog:entry_list' %}" class="btn btn-outline-secondary">
+                <i class="ri-arrow-left-line"></i> All events
+            </a>
+        {% endif %}
+        <a href="{% url 'auditlog:dashboard' %}" class="btn btn-outline-secondary">
+            <i class="ri-dashboard-line"></i> Dashboard
+        </a>
+    </div>
+</div>
+
+{% if target_user %}
+    {% url 'auditlog:user_entry_export' target_user.get_username as export_url %}
+{% else %}
+    {% url 'auditlog:entry_export' as export_url %}
+{% endif %}
+{% include "auditlog/_filter_form.html" with export_url=export_url %}
+
+<div class="card-custom">
+    <div class="table-responsive">
+        <table class="table table-hover audit-table align-middle">
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    {% if not target_user %}<th>User</th>{% endif %}
+                    <th>Action</th>
+                    <th>Status</th>
+                    <th>IP address</th>
+                    <th>Target</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for e in entries %}
+                    <tr>
+                        <td class="mono text-nowrap">{{ e.timestamp|date:"Y-m-d H:i:s" }}</td>
+                        {% if not target_user %}
+                            <td>
+                                {% if e.user %}
+                                    <a href="{% url 'auditlog:user_entry_list' e.user.get_username %}">{{ e.username_snapshot|default:e.user }}</a>
+                                    {% if e.username_snapshot and e.username_snapshot != e.user.get_username %}
+                                        <span class="text-muted small">(now {{ e.user.get_username }})</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted">&mdash;</span>
+                                {% endif %}
+                            </td>
+                        {% endif %}
+                        <td>{{ e.get_action_type_display }}</td>
+                        <td>
+                            <span class="audit-badge {% if e.status == 'SUCCESS' %}ok{% else %}fail{% endif %}">
+                                {{ e.get_status_display }}
+                            </span>
+                        </td>
+                        <td class="mono">
+                            <a href="{% url 'auditlog:entry_list' %}?ip_address={{ e.ip_address|urlencode }}">{{ e.ip_address }}</a>
+                        </td>
+                        <td class="mono text-break">{{ e.target_reference|default:"—" }}</td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="{% if target_user %}5{% else %}6{% endif %}" class="text-center text-muted py-4">
+                            No events match these filters.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% include "auditlog/_pagination.html" %}
+</div>
+{% endblock %}
