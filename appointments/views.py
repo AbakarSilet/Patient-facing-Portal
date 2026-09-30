@@ -1,3 +1,5 @@
+#appointments/views.py
+
 from django import forms
 from django.shortcuts import render
 
@@ -65,3 +67,5 @@ def request_appointment(request):
         form = AppointmentRequestForm(appointment_types=appointment_types)
 
     return render(request, "appointments/request_appointment.html", {"form": form})
+
+
