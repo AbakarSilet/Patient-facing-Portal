@@ -1,0 +1,272 @@
+/* static/css/admin_custom.css
+   Thème Django Admin aligné sur variables.css (ABU Patient Portal).
+
+   Les tokens --abu-* sont copiés de variables.css. Le préfixe évite la
+   collision avec --border-color, que l'admin définit aussi.
+   Palette modifiée dans variables.css ? Reportez-la dans la section 1.
+   Les modes clair / sombre / auto suivent le sélecteur de thème de l'admin
+   (attribut data-theme sur <html>, comme sur le reste du site). */
+
+
+/* ==========================================================================
+   1. Tokens
+   ========================================================================== */
+:root,
+html[data-theme="light"] {
+    --abu-font: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    --abu-mono: 'JetBrains Mono', monospace;
+    --abu-radius: 0.625rem;
+    --abu-radius-sm: 0.375rem;
+
+    --abu-primary: #006837;
+    --abu-primary-hover: #004d28;
+    --abu-primary-light: #e6f4ed;
+    --abu-on-primary: #ffffff;
+    --abu-gold: #d4af37;
+    --abu-gold-light: #fef9e7;
+
+    --abu-bg-app: #f4f7f5;
+    --abu-bg-surface: #ffffff;
+    --abu-bg-hover: #f0f7f3;
+    --abu-bg-nav: #00381e;
+    --abu-on-nav: #ffffff;
+
+    --abu-text: #12211a;
+    --abu-text-secondary: #42594e;
+    --abu-border: #dbe6e0;
+
+    --abu-danger: #b91c1c;
+    --abu-success-bg: #d1fae5;
+    --abu-warning-bg: #fef3c7;
+    --abu-error-bg: #fee2e2;
+
+    --abu-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    --abu-shadow-lg: 0 10px 25px rgba(0, 68, 35, 0.12);
+}
+
+html[data-theme="dark"] {
+    --abu-primary: #10b981;
+    --abu-primary-hover: #34d399;
+    --abu-primary-light: #064e3b;
+    --abu-on-primary: #022c22;
+    --abu-gold: #facc15;
+    --abu-gold-light: #423000;
+
+    --abu-bg-app: #0c1412;
+    --abu-bg-surface: #14221f;
+    --abu-bg-hover: #1e312d;
+    --abu-bg-nav: #060d0b;
+
+    --abu-text: #f8fafc;
+    --abu-text-secondary: #cbd5e1;
+    --abu-border: #1e3830;
+
+    --abu-danger: #f87171;
+    --abu-success-bg: #064e3b;
+    --abu-warning-bg: #423000;
+    --abu-error-bg: #4c1d1d;
+
+    --abu-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+    --abu-shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.6);
+}
+
+@media (prefers-color-scheme: dark) {
+    html[data-theme="auto"] {
+        --abu-primary: #10b981;
+        --abu-primary-hover: #34d399;
+        --abu-primary-light: #064e3b;
+        --abu-on-primary: #022c22;
+        --abu-gold: #facc15;
+        --abu-gold-light: #423000;
+
+        --abu-bg-app: #0c1412;
+        --abu-bg-surface: #14221f;
+        --abu-bg-hover: #1e312d;
+        --abu-bg-nav: #060d0b;
+
+        --abu-text: #f8fafc;
+        --abu-text-secondary: #cbd5e1;
+        --abu-border: #1e3830;
+
+        --abu-danger: #f87171;
+        --abu-success-bg: #064e3b;
+        --abu-warning-bg: #423000;
+        --abu-error-bg: #4c1d1d;
+
+        --abu-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+        --abu-shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.6);
+    }
+}
+
+
+/* ==========================================================================
+   2. Variables de l'admin -> tokens
+   (même spécificité que dark_mode.css, chargé après : on gagne dans tous
+   les modes)
+   ========================================================================== */
+:root,
+html[data-theme] {
+    --font-family-primary: var(--abu-font);
+    --font-family-monospace: var(--abu-mono);
+
+    --primary: var(--abu-primary);
+    --secondary: var(--abu-primary);
+    --accent: var(--abu-gold);
+    --primary-fg: var(--abu-on-primary);
+
+    --body-fg: var(--abu-text);
+    --body-bg: var(--abu-bg-surface);
+    --body-quiet-color: var(--abu-text-secondary);
+    --body-medium-color: var(--abu-text-secondary);
+    --body-loud-color: var(--abu-text);
+
+    --header-color: var(--abu-on-nav);
+    --header-branding-color: var(--abu-gold);
+    --header-bg: var(--abu-bg-nav);
+    --header-link-color: var(--abu-on-nav);
+
+    --breadcrumbs-fg: var(--abu-text-secondary);
+    --breadcrumbs-link-fg: var(--abu-primary);
+    --breadcrumbs-bg: var(--abu-primary-light);
+
+    --link-fg: var(--abu-primary);
+    --link-hover-color: var(--abu-primary-hover);
+    --link-selected-fg: var(--abu-primary);
+
+    --hairline-color: var(--abu-border);
+    --border-color: var(--abu-border);
+
+    --error-fg: var(--abu-danger);
+    --message-success-bg: var(--abu-success-bg);
+    --message-warning-bg: var(--abu-warning-bg);
+    --message-error-bg: var(--abu-error-bg);
+
+    --darkened-bg: var(--abu-bg-hover);
+    --selected-bg: var(--abu-primary-light);
+    --selected-row: var(--abu-gold-light);
+
+    --button-fg: var(--abu-on-primary);
+    --button-bg: var(--abu-primary);
+    --button-hover-bg: var(--abu-primary-hover);
+    --default-button-bg: var(--abu-primary);
+    --default-button-hover-bg: var(--abu-primary-hover);
+    --close-button-bg: var(--abu-text-secondary);
+    --close-button-hover-bg: var(--abu-text);
+    --delete-button-bg: #b91c1c;
+    --delete-button-hover-bg: #991b1b;
+
+    --object-tools-fg: var(--abu-on-primary);
+    --object-tools-bg: var(--abu-primary);
+    --object-tools-hover-bg: var(--abu-primary-hover);
+}
+
+
+/* ==========================================================================
+   3. Composants
+   ========================================================================== */
+body {
+    background-color: var(--abu-bg-app);
+}
+
+/* En-tête */
+#header {
+    border-bottom: 3px solid var(--abu-gold);
+    box-shadow: var(--abu-shadow);
+}
+
+#site-name {
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+
+#user-tools a.audit-link {
+    color: var(--abu-gold);
+    font-weight: 700;
+}
+
+.breadcrumbs {
+    border-bottom: 1px solid var(--abu-border);
+}
+
+/* Modules (cartes) */
+.module {
+    border: 1px solid var(--abu-border);
+    border-radius: var(--abu-radius);
+    box-shadow: var(--abu-shadow);
+}
+
+.module h2,
+.module caption,
+.inline-group h2 {
+    background: var(--abu-primary);
+    color: var(--abu-on-primary);
+    font-weight: 600;
+}
+
+.module > h2:first-child,
+.module caption {
+    border-radius: calc(var(--abu-radius) - 1px) calc(var(--abu-radius) - 1px) 0 0;
+}
+
+.module h2 a:link,
+.module h2 a:visited,
+a.section:link,
+a.section:visited {
+    color: var(--abu-on-primary);
+}
+
+/* Boutons */
+.button,
+a.button,
+input[type="submit"],
+input[type="button"],
+.submit-row input {
+    border-radius: var(--abu-radius-sm);
+    font-weight: 600;
+}
+
+.submit-row {
+    border-radius: var(--abu-radius);
+}
+
+/* Champs */
+input[type="text"],
+input[type="password"],
+input[type="email"],
+input[type="url"],
+input[type="number"],
+input[type="tel"],
+input[type="search"],
+input[type="date"],
+input[type="time"],
+textarea,
+select {
+    border-radius: var(--abu-radius-sm);
+}
+
+.vTextField:focus,
+.vLargeTextField:focus,
+textarea:focus,
+select:focus,
+input:is([type="text"], [type="password"], [type="email"], [type="url"],
+         [type="number"], [type="tel"], [type="search"], [type="date"],
+         [type="time"]):focus {
+    border-color: var(--abu-primary);
+    outline: none;
+    box-shadow: 0 0 0 3px var(--abu-primary-light);
+}
+
+/* Page de connexion */
+.login #container {
+    border-radius: var(--abu-radius);
+    box-shadow: var(--abu-shadow-lg);
+}
+
+/* Raccourcis d'audit (page d'accueil de l'admin) */
+.module.audit-shortcuts {
+    border-left: 4px solid var(--abu-gold);
+}
+
+.audit-shortcuts td {
+    color: var(--abu-text-secondary);
+}

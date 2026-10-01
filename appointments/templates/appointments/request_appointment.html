@@ -1,10 +1,126 @@
-<h1>Demander un rendez-vous</h1>
-{% if error %}<p style="color:red">{{ error }}</p>{% endif %}
-{% if success %}<p style="color:green">Demande envoyée — statut : en attente de confirmation par le personnel.</p>{% endif %}
-{% if form %}
-<form method="post">
-  {% csrf_token %}
-  {{ form.as_p }}
-  <button type="submit">Envoyer la demande</button>
-</form>
-{% endif %}
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Request an Appointment - Patient Portal{% endblock %}
+
+{% block style %}
+<style>
+    .appointment-card {
+        max-width: 520px;
+        margin: 0.5rem auto;
+        padding: 1.5rem;
+        background-color: var(--bg-surface);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.04);
+    }
+    .appointment-card input,
+    .appointment-card select,
+    .appointment-card textarea {
+        font-size: 0.875rem;
+        padding: 0.5rem 0.75rem;
+        border-color: var(--border-color);
+        border-radius: 8px;
+        width: 100%;
+        background-color: var(--bg-surface);
+        color: var(--text-primary);
+    }
+    .appointment-card input:focus,
+    .appointment-card select:focus,
+    .appointment-card textarea:focus {
+        border-color: var(--color-primary);
+        outline: none;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-center py-1">
+    <div class="appointment-card w-100">
+        
+        <!-- Header -->
+        <div class="d-flex align-items-center justify-content-between pb-3 mb-3 border-bottom" style="border-color: var(--border-color) !important;">
+            <div class="d-flex align-items-center gap-2.5">
+                <div class="d-inline-flex align-items-center justify-content-center rounded-circle" 
+                     style="width: 44px; height: 44px; background-color: var(--color-primary-light); color: var(--color-primary);">
+                    <i class="ri-calendar-add-line fs-4"></i>
+                </div>
+                <div>
+                    <h1 class="fw-bold fs-5 mb-0" style="color: var(--text-primary);">Request Appointment</h1>
+                    <p class="text-muted small mb-0">Submit a new consultation or clinic visit request</p>
+                </div>
+            </div>
+            <a href="{% url 'my_appointment_requests' %}" class="btn btn-sm btn-outline-secondary">
+                <i class="ri-arrow-left-line me-1"></i> Back
+            </a>
+        </div>
+
+        <!-- Alert Messages -->
+        {% if error %}
+        <div class="alert alert-danger d-flex align-items-center gap-2 py-2 px-3 small mb-3" role="alert">
+            <i class="ri-error-warning-line fs-5 flex-shrink-0"></i>
+            <div>{{ error }}</div>
+        </div>
+        {% endif %}
+
+        {% if success %}
+        <div class="alert alert-success d-flex align-items-center gap-2 py-2 px-3 small mb-3" role="alert">
+            <i class="ri-checkbox-circle-line fs-5 flex-shrink-0"></i>
+            <div>Request submitted successfully — status: pending staff confirmation.</div>
+        </div>
+        {% endif %}
+
+        <!-- Form Body -->
+        {% if form %}
+        <form method="post" novalidate>
+            {% csrf_token %}
+            
+            {% if form.non_field_errors %}
+                <div class="alert alert-danger small py-2 px-3 mb-3">
+                    {{ form.non_field_errors.0 }}
+                </div>
+            {% endif %}
+
+            {% for field in form %}
+            <div class="mb-3">
+                <label for="{{ field.id_for_label }}" class="form-label fw-medium small mb-1" style="color: var(--text-primary);">
+                    {{ field.label }}
+                    {% if field.field.required %}<span class="text-danger">*</span>{% endif %}
+                </label>
+                
+                {{ field }}
+
+                {% if field.help_text %}
+                    <div class="form-text small text-muted mt-1">{{ field.help_text }}</div>
+                {% endif %}
+
+                {% if field.errors %}
+                    <div class="text-danger small mt-1">
+                        <i class="ri-error-warning-line me-1"></i>{{ field.errors.0 }}
+                    </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+
+            <div class="pt-2">
+                <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold" style="background-color: var(--color-primary); border: none;">
+                    <i class="ri-send-plane-fill me-1"></i> Submit Request
+                </button>
+            </div>
+        </form>
+        {% endif %}
+
+        <!-- Secondary Link -->
+        <div class="text-center pt-3 mt-3 border-top" style="border-color: var(--border-color) !important;">
+            <p class="mb-0 text-muted small">
+                Need to review previously submitted requests? 
+                <a href="{% url 'my_appointment_requests' %}" class="text-decoration-none fw-medium" style="color: var(--color-primary);">
+                    View My Requests
+                </a>
+            </p>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

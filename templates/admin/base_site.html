@@ -1,0 +1,15 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrastyle %}{{ block.super }}
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="{% static 'css/admin_custom.css' %}">
+{% endblock %}
+
+{# Lien visible uniquement dans l'admin Django, et seulement pour un superuser. #}
+{% block userlinks %}
+    {% if user.is_superuser %}
+        <a href="{% url 'auditlog:dashboard' %}" class="audit-link">Audit</a> /
+    {% endif %}
+    {{ block.super }}
+{% endblock %}

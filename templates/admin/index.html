@@ -1,0 +1,24 @@
+{% extends "admin/index.html" %}
+
+{% block content %}
+{% if user.is_superuser %}
+<div class="module audit-shortcuts">
+    <table>
+        <caption>Audit &amp; Security</caption>
+        <tr>
+            <th scope="row"><a href="{% url 'auditlog:dashboard' %}">Audit dashboard</a></th>
+            <td>Failed logins, lockouts and OpenMRS errors over the last 24 hours</td>
+        </tr>
+        <tr>
+            <th scope="row"><a href="{% url 'auditlog:entry_list' %}">Audit log</a></th>
+            <td>Search, filter and export audit events</td>
+        </tr>
+        <tr>
+            <th scope="row"><a href="{% url 'auditlog:openmrs_list' %}">OpenMRS requests</a></th>
+            <td>Outbound calls to the EHR</td>
+        </tr>
+    </table>
+</div>
+{% endif %}
+{{ block.super }}
+{% endblock %}

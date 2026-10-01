@@ -20,11 +20,9 @@ class PatientRegistrationForm(UserCreationForm):
 
 class OTPVerifyForm(forms.Form):
     token = forms.CharField(
-        max_length=6, label="Code à 6 chiffres",
+        max_length=6, label="6-digit code",
         widget=forms.TextInput(attrs={"inputmode": "numeric", "autocomplete": "one-time-code", "autofocus": True}),
     )
-
-
 
 
 class PasswordResetRequestForm(forms.Form):
@@ -41,7 +39,7 @@ class PasswordResetConfirmForm(forms.Form):
         cleaned = super().clean()
         p1, p2 = cleaned.get("new_password1"), cleaned.get("new_password2")
         if p1 and p2 and p1 != p2:
-            self.add_error("new_password2", "Les mots de passe ne correspondent pas.")
+            self.add_error("new_password2", "Passwords do not match.")
         if p1:
             try:
                 validate_password(p1)
@@ -61,13 +59,13 @@ class UsernameChangeForm(forms.Form):
     def clean_current_password(self):
         password = self.cleaned_data["current_password"]
         if not self.user.check_password(password):
-            raise forms.ValidationError("Mot de passe incorrect.")
+            raise forms.ValidationError("Incorrect password.")
         return password
 
     def clean_new_username(self):
         new_username = self.cleaned_data["new_username"]
         if PortalUser.objects.filter(username=new_username).exclude(pk=self.user.pk).exists():
-            raise forms.ValidationError("Ce nom d'utilisateur est déjà pris.")
+            raise forms.ValidationError("This username is already taken.")
         return new_username
 
 
@@ -78,5 +76,5 @@ class ProfileInfoForm(forms.ModelForm):
 
 
 class AccountDeletionRequestForm(forms.Form):
-    current_password = forms.CharField(widget=forms.PasswordInput, label="Mot de passe actuel")
-    totp_token = forms.CharField(max_length=6, label="Code d'authentification (app)")    
+    current_password = forms.CharField(widget=forms.PasswordInput, label="Current password")
+    totp_token = forms.CharField(max_length=6, label="Authentication code (app)")

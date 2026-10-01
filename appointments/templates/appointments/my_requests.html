@@ -1,25 +1,174 @@
-<h1>Mes demandes de rendez-vous</h1>
-{% if request.GET.error == "unavailable" %}<p style="color:red">Service temporairement indisponible.</p>{% endif %}
-{% if request.GET.error == "not_pending" %}<p style="color:red">Cette demande n'est plus annulable.</p>{% endif %}
-{% if error %}<p style="color:red">{{ error }}</p>{% endif %}
-{% if requests %}
-<table border="1" cellpadding="6">
-  <tr><th>Type</th><th>Statut</th><th>Demandé le</th><th>Fenêtre souhaitée</th><th>Motif</th><th></th></tr>
-  {% for r in requests %}
-  <tr>
-    <td>{{ r.appointment_type }}</td><td>{{ r.status }}</td><td>{{ r.requested_on }}</td>
-    <td>{{ r.timeframe }}</td><td>{{ r.notes }}</td>
-    <td>
-      {% if r.status == "PENDING" %}
-      <form method="post" action="{% url 'cancel_appointment_request' r.uuid %}">
-        {% csrf_token %}<button type="submit">Annuler</button>
-      </form>
-      {% endif %}
-    </td>
-  </tr>
-  {% endfor %}
-</table>
-{% else %}
-<p>Aucune demande de rendez-vous pour le moment.</p>
-{% endif %}
-<a href="{% url 'request_appointment' %}">Nouvelle demande</a>
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}My Appointment Requests - Patient Portal{% endblock %}
+
+{% block style %}
+<style>
+    .appointments-container {
+        max-width: 900px;
+        margin: 0.5rem auto;
+    }
+    .appointments-card {
+        background-color: var(--bg-surface);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+    }
+    .table > :not(caption) > * > * {
+        padding: 0.65rem 0.85rem;
+        background-color: transparent;
+        color: var(--text-primary);
+        border-bottom-color: var(--border-color);
+    }
+    .badge-status {
+        font-size: 0.725rem;
+        font-weight: 600;
+        padding: 0.25rem 0.55rem;
+        border-radius: 50rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="appointments-container py-1">
+    
+    <!-- Page Header -->
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <div class="d-flex align-items-center gap-2.5">
+            <div class="d-inline-flex align-items-center justify-content-center rounded-circle" 
+                 style="width: 44px; height: 44px; background-color: var(--color-primary-light); color: var(--color-primary);">
+                <i class="ri-calendar-event-line fs-4"></i>
+            </div>
+            <div>
+                <h1 class="fw-bold fs-5 mb-0" style="color: var(--text-primary);">Appointment Requests</h1>
+                <p class="text-muted small mb-0">Manage your pending and scheduled appointment requests</p>
+            </div>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'dashboard' %}" class="btn btn-sm btn-outline-secondary">
+                <i class="ri-arrow-left-line me-1"></i> Dashboard
+            </a>
+            <a href="{% url 'request_appointment' %}" class="btn btn-sm btn-primary" style="background-color: var(--color-primary); border: none;">
+                <i class="ri-add-line me-1"></i> New Request
+            </a>
+        </div>
+    </div>
+
+    <!-- Alert Messages -->
+    {% if request.GET.error == "unavailable" %}
+    <div class="alert alert-danger d-flex align-items-center gap-2 py-2 px-3 small mb-2.5" role="alert">
+        <i class="ri-error-warning-line fs-5 flex-shrink-0"></i>
+        <div>Service is temporarily unavailable. Please try again later.</div>
+    </div>
+    {% endif %}
+
+    {% if request.GET.error == "not_pending" %}
+    <div class="alert alert-warning d-flex align-items-center gap-2 py-2 px-3 small mb-2.5" role="alert">
+        <i class="ri-alert-line fs-5 flex-shrink-0"></i>
+        <div>This request is no longer pending and cannot be cancelled.</div>
+    </div>
+    {% endif %}
+
+    {% if error %}
+    <div class="alert alert-danger d-flex align-items-center gap-2 py-2 px-3 small mb-2.5" role="alert">
+        <i class="ri-error-warning-line fs-5 flex-shrink-0"></i>
+        <div>{{ error }}</div>
+    </div>
+    {% endif %}
+
+    <!-- Requests Table Card -->
+    <div class="appointments-card mb-3 overflow-hidden">
+        <div class="p-3 border-bottom d-flex align-items-center justify-content-between bg-body-tertiary" style="border-color: var(--border-color) !important;">
+            <div class="d-flex align-items-center gap-2">
+                <i class="ri-history-line fs-5 text-primary"></i>
+                <h2 class="fw-semibold fs-6 mb-0" style="color: var(--text-primary);">Submitted Requests</h2>
+            </div>
+            {% if requests %}
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill small fw-normal">
+                    {{ requests|length }} Request{% if requests|length > 1 %}s{% endif %}
+                </span>
+            {% endif %}
+        </div>
+
+        {% if requests %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 small">
+                <thead class="table-light border-bottom">
+                    <tr>
+                        <th scope="col" class="fw-semibold">Type</th>
+                        <th scope="col" class="fw-semibold">Status</th>
+                        <th scope="col" class="fw-semibold">Requested On</th>
+                        <th scope="col" class="fw-semibold">Preferred Timeframe</th>
+                        <th scope="col" class="fw-semibold">Reason</th>
+                        <th scope="col" class="fw-semibold text-end">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+    {% for r in requests %}
+    <tr>
+        <td class="fw-bold text-primary-emphasis">{{ r.appointment_type|default:"General Consultation" }}</td>
+        <td>
+            {% if r.status == "PENDING" %}
+                <span class="badge badge-status bg-warning-subtle text-warning-emphasis border border-warning-subtle">
+                    <i class="ri-time-line me-1"></i>Pending
+                </span>
+            {% elif r.status == "FULFILLED" or r.status == "CONFIRMED" %}
+                <span class="badge badge-status bg-success-subtle text-success border border-success-subtle">
+                    <i class="ri-checkbox-circle-line me-1"></i>Confirmed
+                </span>
+            {% elif r.status == "CANCELLED" %}
+                <span class="badge badge-status bg-secondary-subtle text-secondary border">
+                    Cancelled
+                </span>
+            {% else %}
+                <span class="badge badge-status bg-info-subtle text-info border border-info-subtle">
+                    {{ r.status|capfirst }}
+                </span>
+            {% endif %}
+        </td>
+        <td class="text-muted">
+            {% if r.requested_on %}
+                {{ r.requested_on|slice:":10" }}
+            {% else %}
+                —
+            {% endif %}
+        </td>
+        <td>
+            <span class="fw-medium">{{ r.timeframe|default:"—" }}</span>
+        </td>
+        <td class="text-muted text-truncate" style="max-width: 180px;">
+            {{ r.notes|default:"—" }}
+        </td>
+        <td class="text-end">
+            {% if r.status == "PENDING" %}
+            <form method="post" action="{% url 'cancel_appointment_request' r.uuid %}"
+                  onsubmit="return confirm('Are you sure you want to cancel this appointment request?');"
+                  class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-xs btn-outline-danger py-1 px-2 small">
+                    <i class="ri-close-circle-line me-1"></i>Cancel
+                </button>
+            </form>
+            {% else %}
+                <span class="text-muted small">—</span>
+            {% endif %}
+        </td>
+    </tr>
+    {% endfor %}
+</tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-4 px-3">
+            <i class="ri-calendar-todo-line fs-2 text-muted opacity-50 mb-1 d-block"></i>
+            <p class="text-muted small mb-2">No appointment requests found.</p>
+            <a href="{% url 'request_appointment' %}" class="btn btn-sm btn-primary" style="background-color: var(--color-primary); border: none;">
+                <i class="ri-add-line me-1"></i> Submit a Request
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}

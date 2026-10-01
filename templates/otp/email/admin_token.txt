@@ -1,0 +1,6 @@
+Your Patient Portal administration verification code is:
+
+{{ token }}
+
+The code is valid for a short time and can be used only once.
+If you did not try to sign in, change your password immediately and alert the security team.

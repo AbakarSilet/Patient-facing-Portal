@@ -1,57 +1,54 @@
 #accounts/views.py
-
-from django_ratelimit.decorators import ratelimit
-from django.db import transaction
-from django.urls import reverse
+import base64
+from datetime import datetime, timedelta
+from io import BytesIO
 from urllib.parse import urlencode
-from django.conf import settings
-from django.shortcuts import render
-from django.contrib.auth import login as auth_login
-from django.contrib.auth.decorators import login_required
-from django.shortcuts import redirect
-from django_otp.plugins.otp_totp.models import TOTPDevice
-from django.contrib.auth import authenticate, logout as auth_logout
-from django.contrib.auth.forms import AuthenticationForm
-from django.contrib.auth.forms import PasswordChangeForm
-from django.contrib.auth import update_session_auth_hash
-from django.utils.http import url_has_allowed_host_and_scheme
-from .forms import AccountDeletionRequestForm, UsernameChangeForm, ProfileInfoForm
-from .forms import OTPVerifyForm, PasswordResetConfirmForm, PasswordResetRequestForm
+
 import qrcode
 import qrcode.image.svg
-from io import BytesIO
-import base64
-
-from openmrs_integration.client import OpenMRSClient
-from auditlog.models import AuditLogEntry
-from .forms import PatientRegistrationForm
-from .models import PatientProfile
-
 import requests
-from datetime import datetime, timedelta
+from django_otp.plugins.otp_totp.models import TOTPDevice
+from django_ratelimit.decorators import ratelimit
+
 from django.conf import settings
+from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout, update_session_auth_hash
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.models import User
-from django.db import transaction, IntegrityError
-from django.shortcuts import render, redirect
-from django.contrib.auth import login as auth_login
+from django.db import IntegrityError, transaction
+from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 
-from openmrs_integration.client import OpenMRSClient
 from auditlog.models import AuditLogEntry
-from .forms import PatientRegistrationForm, OTPVerifyForm
-from .models import AccountErasureRequest
-from .models import PatientProfile
-from .otp_utils import (
-    generate_otp, hash_otp, extract_phone_number, mask_phone, phones_match,normalize_phone_digits,
-    send_otp_sms, OTP_VALIDITY_SECONDS, OTP_MAX_ATTEMPTS, send_sms
-)
-from .decorators import portal_login_required
-from .models import PortalUser, PatientProfile 
 from auditlog.utils import get_client_ip
+from openmrs_integration.client import OpenMRSClient
 
-
-
+from .decorators import portal_login_required
+from .forms import (
+    AccountDeletionRequestForm,
+    OTPVerifyForm,
+    PasswordResetConfirmForm,
+    PasswordResetRequestForm,
+    PatientRegistrationForm,
+    ProfileInfoForm,
+    UsernameChangeForm,
+)
+from .models import AccountErasureRequest, PatientProfile, PortalUser
+from .otp_utils import (
+    OTP_MAX_ATTEMPTS,
+    OTP_VALIDITY_SECONDS,
+    extract_phone_number,
+    generate_otp,
+    hash_otp,
+    mask_phone,
+    normalize_phone_digits,
+    phones_match,
+    send_otp_sms,
+    send_sms,
+)
 
 @ratelimit(key='ip', rate='20/h', method='POST', block=False)
 @ratelimit(key='post:openmrs_identifier', rate='5/h', method='POST', block=False)
@@ -288,7 +285,7 @@ def mfa_setup(request):
     error = None
     if request.method == "POST":
         if getattr(request, "limited", False):
-            error = "Trop de tentatives. Réessaie plus tard."
+            error = "Too many attempts. Please try again later."
         else:
             token = request.POST.get("token", "")
             if device.verify_token(token):
@@ -328,7 +325,7 @@ def login_view(request):
     error = None
     if request.method == "POST":
         if getattr(request, "limited", False):
-            error = "Trop de tentatives. Réessaie plus tard."
+            error = "Too many attempts. Please try again later."
             form = AuthenticationForm(request)
         else:
             form = AuthenticationForm(request, data=request.POST)
@@ -341,15 +338,15 @@ def login_view(request):
                     next_url, allowed_hosts={request.get_host()}, require_https=request.is_secure()
                 ) else ""
 
-                # Le MFA s'intercale TOUJOURS avant la destination finale —
-                # jamais de raccourci vers `next` ici, sinon on contourne
-                # otp_verify et on retombe dans la boucle observée.
+                # MFA is ALWAYS inserted before the final destination —
+                # never shortcut to `next` here, otherwise we bypass
+                # otp_verify and fall back into the observed loop.
                 otp_url = reverse("otp_verify")
                 if safe_next:
                     otp_url = f"{otp_url}?{urlencode({'next': safe_next})}"
                 return redirect(otp_url)
 
-            error = "Identifiants invalides."
+            error = "Invalid credentials."
             attempted_username = request.POST.get("username", "")
             AuditLogEntry.objects.create(
                 user=PortalUser.objects.filter(username=attempted_username).first(),
@@ -387,7 +384,7 @@ def otp_verify(request):
     if request.method == "POST":
         if getattr(request, "limited", False):
             return render(request, "accounts/otp_verify.html", {
-                "form": OTPVerifyForm(), "error": "Trop de tentatives. Réessaie plus tard.", "next": safe_next,
+                "form": OTPVerifyForm(), "error": "Too many attempts. Please try again later.", "next": safe_next,
             })
 
         attempts = request.session.get(OTP_VERIFY_SESSION_KEY, 0)
@@ -414,7 +411,7 @@ def otp_verify(request):
             attempts += 1
             request.session[OTP_VERIFY_SESSION_KEY] = attempts
             remaining = OTP_MAX_ATTEMPTS - attempts
-            error = f"Code invalide ({remaining} tentative(s) restante(s))."
+            error = f"Invalid code ({remaining} attempt(s) remaining)."
             AuditLogEntry.objects.create(
                 user=request.user, action_type=AuditLogEntry.ActionType.LOGIN_FAILED,
                 ip_address=get_client_ip(request), status=AuditLogEntry.Status.FAILURE,
@@ -445,7 +442,7 @@ def forgot_password(request):
         form = PasswordResetRequestForm(request.POST)
         if form.is_valid():
             if getattr(request, "limited", False):
-                error = "Trop de tentatives. Réessaie dans quelques instants."
+                error = "Too many attempts. Please try again later."
             else:
                 username = form.cleaned_data["username"]
                 submitted_phone = normalize_phone_digits(form.cleaned_data["phone_number"])
@@ -476,7 +473,7 @@ def forgot_password(request):
                     )
                     return redirect("reset_password_confirm")
 
-                error = "Nom d'utilisateur et/ou numéro de téléphone incorrect."
+                error = "Invalid username and/or phone number."
                 AuditLogEntry.objects.create(
                     user=user, action_type=AuditLogEntry.ActionType.PASSWORD_RESET_IDENTITY_FAILED,
                     target_reference=username, ip_address=get_client_ip(request),
@@ -493,11 +490,11 @@ RESEND_MAX = 3
 @ratelimit(key='ip', rate='30/h', method='POST', block=False)
 def reset_password_confirm(request):
     """
-    Contient le formulaire de reset ET le renvoi de code, sur la même
-    page — évite l'aller-retour vers forgot_password une fois l'identité
-    déjà prouvée. Pas de auth_login ici : l'utilisateur repasse par
-    login_view, qui redemandera le TOTP si un device est confirmé — ce
-    flux ne contourne jamais le MFA.
+    Contains the reset form AND code resend on the same page —
+    avoids a back-and-forth to forgot_password once identity is
+    already proven. No auth_login here: the user goes back through
+    login_view, which will prompt for TOTP again if a device is confirmed —
+    this flow never bypasses MFA.
     """
     pending = request.session.get("pending_password_reset")
     if not pending:
@@ -507,7 +504,7 @@ def reset_password_confirm(request):
     resent = False
 
     if request.method == "POST" and getattr(request, "limited", False):
-        error = "Trop de tentatives. Réessaie plus tard."
+        error = "Too many attempts. Please try again later."
         return render(request, "accounts/reset_password_confirm.html", {
             "form": PasswordResetConfirmForm(), "error": error,
         })
@@ -517,7 +514,7 @@ def reset_password_confirm(request):
             del request.session["pending_password_reset"]
             return render(request, "accounts/forgot_password.html", {
                 "form": PasswordResetRequestForm(),
-                "error": "Nombre maximal de renvois atteint. Recommence la procédure.",
+                "error": "Maximum number of resends reached. Please restart the process.",
             })
         user = PortalUser.objects.get(id=pending["user_id"])
         code = generate_otp()
@@ -556,7 +553,7 @@ def reset_password_confirm(request):
                 user.save()
                 send_sms(
                     user.patientprofile.phone_number,
-                    "Votre mot de passe vient d'être réinitialisé. Si ce n'est pas vous, contactez immédiatement l'accueil.",
+                    "Your password has just been reset. If this was not you, please contact reception immediately.",
                 )
                 del request.session["pending_password_reset"]
                 AuditLogEntry.objects.create(
@@ -567,7 +564,7 @@ def reset_password_confirm(request):
             pending["otp_attempts"] += 1
             request.session["pending_password_reset"] = pending
             remaining = OTP_MAX_ATTEMPTS - pending["otp_attempts"]
-            error = f"Code invalide ({remaining} tentative(s) restante(s))."
+            error = f"Invalid code ({remaining} attempt(s) remaining)."
             AuditLogEntry.objects.create(
                 user_id=pending["user_id"], action_type=AuditLogEntry.ActionType.PASSWORD_RESET_OTP_FAILED,
                 ip_address=get_client_ip(request), status=AuditLogEntry.Status.FAILURE,
@@ -577,19 +574,18 @@ def reset_password_confirm(request):
 
     return render(request, "accounts/reset_password_confirm.html", {"form": form, "error": error, "resent": resent})
 
-
 @ratelimit(key='user', rate='10/h', method='POST', block=False)
 @portal_login_required
 def change_username(request):
     """
-    Exige le mot de passe actuel : une session volée (cookie, XSS) ne
-    suffit pas à changer un identifiant de connexion sans reconfirmer
-    un secret que l'attaquant n'a pas.
+    Requires the current password: a stolen session (cookie, XSS) is not
+    enough to change a login identifier without re-confirming a secret
+    the attacker does not have.
     """
     error = None
     if request.method == "POST":
         if getattr(request, "limited", False):
-            error = "Trop de tentatives. Réessaie plus tard."
+            error = "Too many attempts. Please try again later."
         else:
             form = UsernameChangeForm(request.user, request.POST)
             if form.is_valid():
@@ -604,8 +600,8 @@ def change_username(request):
                 try:
                     send_sms(
                         request.user.patientprofile.phone_number,
-                        f"Votre nom d'utilisateur a été changé en '{request.user.username}'. "
-                        "Si ce n'est pas vous, contactez immédiatement l'accueil.",
+                        f"Your username has been changed to '{request.user.username}'. "
+                        "If this was not you, please contact support immediately.",
                     )
                 except PatientProfile.DoesNotExist:
                     pass
@@ -616,21 +612,19 @@ def change_username(request):
 
     return render(request, "accounts/change_username.html", {"form": form, "error": error})
 
-
 @ratelimit(key='user', rate='10/h', method='POST', block=False)
 @portal_login_required
 def change_password(request):
     """
-    PasswordChangeForm exige déjà l'ancien mot de passe. update_session_auth_hash
-    évite de déconnecter la session courante — les AUTRES sessions du compte
-    seront, elles, invalidées automatiquement (leur hash de session ne
-    correspond plus au nouveau mot de passe), fermant toute session
-    parallèle qu'un attaquant aurait pu ouvrir.
+    PasswordChangeForm already requires the old password. update_session_auth_hash
+    prevents logging out the current session — OTHER sessions for this account
+    will be automatically invalidated (their session hash no longer matches the
+    new password), closing any parallel session an attacker might have opened.
     """
     error = None
     if request.method == "POST":
         if getattr(request, "limited", False):
-            error = "Trop de tentatives. Réessaie plus tard."
+            error = "Too many attempts. Please try again later."
             form = PasswordChangeForm(user=request.user)
         else:
             form = PasswordChangeForm(user=request.user, data=request.POST)
@@ -644,7 +638,7 @@ def change_password(request):
                 try:
                     send_sms(
                         user.patientprofile.phone_number,
-                        "Votre mot de passe vient d'être modifié. Si ce n'est pas vous, contactez immédiatement l'accueil.",
+                        "Your password has just been changed. If this was not you, please contact reception immediately.",
                     )
                 except PatientProfile.DoesNotExist:
                     pass
@@ -653,7 +647,6 @@ def change_password(request):
         form = PasswordChangeForm(user=request.user)
 
     return render(request, "accounts/change_password.html", {"form": form, "error": error})
-
 
 @portal_login_required
 def edit_profile(request):
@@ -672,7 +665,6 @@ def edit_profile(request):
     return render(request, "accounts/edit_profile.html", {"form": form})
 
 
-
 ACCOUNT_DELETION_GRACE_PERIOD = timedelta(days=30)
 
 
@@ -680,11 +672,11 @@ ACCOUNT_DELETION_GRACE_PERIOD = timedelta(days=30)
 @portal_login_required
 def request_account_deletion(request):
     """
-    Ré-authentification fraîche exigée (mot de passe + TOTP), même si la
-    session est déjà vérifiée — une action irréversible ne doit jamais
-    reposer sur une session qui pourrait être volée. Le compte est
-    désactivé immédiatement ; l'anonymisation réelle n'a lieu qu'après
-    le délai de grâce, via purge_erased_accounts (voir management/commands/).
+    Fresh re-authentication required (password + TOTP), even if the session
+    is already verified — an irreversible action must never rely on a session
+    that could be stolen. The account is deactivated immediately; actual
+    anonymization only happens after the grace period via purge_erased_accounts
+    (see management/commands/).
     """
     if hasattr(request.user, "erasure_request") and request.user.erasure_request.executed_at is None:
         return render(request, "accounts/deletion_already_requested.html", {
@@ -695,7 +687,7 @@ def request_account_deletion(request):
     if request.method == "POST":
         form = AccountDeletionRequestForm(request.POST)
         if getattr(request, "limited", False):
-            error = "Trop de tentatives. Réessaie plus tard."
+            error = "Too many attempts. Please try again later."
         elif form.is_valid():
             device = TOTPDevice.objects.filter(user=request.user, confirmed=True).first()
             password_ok = request.user.check_password(form.cleaned_data["current_password"])
@@ -714,19 +706,20 @@ def request_account_deletion(request):
                 try:
                     send_sms(
                         request.user.patientprofile.phone_number,
-                        f"Suppression de compte demandée. Vos données seront définitivement "
-                        f"effacées le {scheduled_for:%d/%m/%Y}. Si ce n'est pas vous, "
-                        "contactez immédiatement l'accueil.",
+                        f"Account deletion requested. Your data will be permanently "
+                        f"erased on {scheduled_for:%d/%m/%Y}. If this was not you, "
+                        "contact reception immediately.",
                     )
                 except PatientProfile.DoesNotExist:
                     pass
                 auth_logout(request)
                 return render(request, "accounts/deletion_requested.html", {"scheduled_for": scheduled_for})
-            error = "Mot de passe et/ou code d'authentification incorrect."
+            error = "Incorrect password and/or authentication code."
     else:
         form = AccountDeletionRequestForm()
 
     return render(request, "accounts/request_account_deletion.html", {"form": form, "error": error})
+
 
 MFA_RECOVERY_SESSION_KEY = "pending_mfa_recovery_otp"
 MFA_RECOVERY_RESEND_MAX = 3
@@ -737,24 +730,24 @@ MFA_RECOVERY_RESEND_MAX = 3
 @login_required
 def lost_mfa_device(request):
     """
-    Point d'entrée pour un utilisateur authentifié (mot de passe validé)
-    mais bloqué à otp_verify — device TOTP perdu. Le mot de passe seul
-    ne doit jamais suffire à désactiver le MFA de quelqu'un (sinon le
-    MFA perd son utilité face à un mot de passe volé) — on exige donc
-    une preuve de possession du téléphone avant de révoquer le device.
+    Entry point for an authenticated user (password validated)
+    but stuck at otp_verify — lost TOTP device. Password alone
+    must never be enough to disable someone's MFA (otherwise
+    MFA loses its utility against a stolen password) — we therefore
+    require proof of phone possession before revoking the device.
     """
     if request.user.is_verified():
         return redirect("dashboard")
 
     device = TOTPDevice.objects.filter(user=request.user, confirmed=True).first()
     if not device:
-        return redirect("mfa_setup")  # rien à réinitialiser, le flux normal suffit
+        return redirect("mfa_setup")  # nothing to reset, standard flow is sufficient
 
     try:
         phone = request.user.patientprofile.phone_number
     except PatientProfile.DoesNotExist:
         return render(request, "accounts/lost_mfa_device_error.html", {
-            "error": "Impossible de vérifier votre identité automatiquement. Contactez un administrateur.",
+            "error": "Unable to verify your identity automatically. Contact an administrator.",
         })
 
     pending = request.session.get(MFA_RECOVERY_SESSION_KEY)
@@ -763,13 +756,13 @@ def lost_mfa_device(request):
 
     if request.method == "POST" and getattr(request, "limited", False):
         return render(request, "accounts/lost_mfa_device.html", {
-            "form": OTPVerifyForm(), "error": "Trop de tentatives. Réessaie plus tard.",
+            "form": OTPVerifyForm(), "error": "Too many attempts. Please try again later.",
             "phone_masked": mask_phone(phone),
         })
 
     if request.method == "POST" and "resend" in request.POST:
         if not pending or pending.get("resend_count", 0) >= MFA_RECOVERY_RESEND_MAX:
-            error = "Nombre maximal de renvois atteint. Contactez l'accueil."
+            error = "Maximum number of resends reached. Contact reception."
         else:
             code = generate_otp()
             pending.update({
@@ -813,7 +806,7 @@ def lost_mfa_device(request):
                 ip_address=get_client_ip(request), status=AuditLogEntry.Status.FAILURE,
             )
             return render(request, "accounts/lost_mfa_device_error.html", {
-                "error": "Trop de tentatives incorrectes. Contactez l'accueil pour débloquer votre compte.",
+                "error": "Too many incorrect attempts. Contact reception to unlock your account.",
             })
 
         form = OTPVerifyForm(request.POST)
@@ -827,14 +820,14 @@ def lost_mfa_device(request):
             )
             send_sms(
                 phone,
-                "Votre authentification à deux facteurs a été réinitialisée. "
-                "Si ce n'est pas vous, contactez immédiatement l'accueil.",
+                "Your two-factor authentication has been reset. "
+                "If this was not you, please contact reception immediately.",
             )
             return redirect("mfa_setup")
         pending["attempts"] += 1
         request.session[MFA_RECOVERY_SESSION_KEY] = pending
         remaining = OTP_MAX_ATTEMPTS - pending["attempts"]
-        error = f"Code invalide ({remaining} tentative(s) restante(s))."
+        error = f"Invalid code ({remaining} attempt(s) remaining)."
         AuditLogEntry.objects.create(
             user=request.user, action_type=AuditLogEntry.ActionType.MFA_RECOVERY_OTP_FAILED,
             ip_address=get_client_ip(request), status=AuditLogEntry.Status.FAILURE,
