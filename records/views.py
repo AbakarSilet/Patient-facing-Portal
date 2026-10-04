@@ -1,15 +1,13 @@
 #records/views.py
 
 import requests
-from django.shortcuts import render
-import requests
 from django.shortcuts import render, get_object_or_404
 
 
 from accounts.decorators import portal_login_required, patient_required
 from accounts.models import PatientProfile
 from auditlog.models import AuditLogEntry
-from openmrs_integration.client import OpenMRSClient
+from openmrs_integration.client import OpenMRSClient, OpenMRSUnavailableError
 from auditlog.utils import get_client_ip
 
 
@@ -133,9 +131,9 @@ def health_records(request):
     for key, method_name, extractor in SECTIONS:
         try:
             bundle = getattr(client, method_name)(profile.openmrs_patient_uuid)
-        except requests.exceptions.RequestException:
+        except OpenMRSUnavailableError:
             context[key] = []
-            context["unavailable"].append(key)      # vuln19, per section
+            context["unavailable"].append(key)
             continue
         resources = [e["resource"] for e in bundle.get("entry", []) if "resource" in e]
         context[key] = [extractor(r) for r in resources if _is_displayable(r)]

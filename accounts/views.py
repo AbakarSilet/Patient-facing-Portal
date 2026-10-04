@@ -413,7 +413,7 @@ def otp_verify(request):
             remaining = OTP_MAX_ATTEMPTS - attempts
             error = f"Invalid code ({remaining} attempt(s) remaining)."
             AuditLogEntry.objects.create(
-                user=request.user, action_type=AuditLogEntry.ActionType.LOGIN_FAILED,
+                user=request.user, action_type=AuditLogEntry.ActionType.OTP_VERIFICATION_FAILED,
                 ip_address=get_client_ip(request), status=AuditLogEntry.Status.FAILURE,
             )
     else:

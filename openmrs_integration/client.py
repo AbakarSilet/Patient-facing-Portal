@@ -114,12 +114,25 @@ class OpenMRSClient:
         return self._request("GET", url).json()
 
 
-    def create_appointment_request(self, patient_uuid, appointment_type_uuid, notes="",
-                                     min_timeframe_value=None, min_timeframe_units=None,
-                                     max_timeframe_value=None, max_timeframe_units=None):
+    def create_appointment_request(
+        self,
+        patient_uuid,
+        appointment_type_uuid,
+        notes="",
+        min_timeframe_value=None,
+        min_timeframe_units=None,
+        max_timeframe_value=None,
+        max_timeframe_units=None,
+    ):
         url = f"{BASE_URL}/ws/rest/v1/appointmentscheduling/appointmentrequest"
+
         now = datetime.now(timezone.utc)
-        requested_on = now.strftime('%Y-%m-%dT%H:%M:%S.') + f'{now.microsecond // 1000:03d}' + now.strftime('%z')
+        requested_on = (
+            now.strftime("%Y-%m-%dT%H:%M:%S.")
+            + f"{now.microsecond // 1000:03d}"
+            + now.strftime("%z")
+        )
+
         payload = {
             "patient": patient_uuid,
             "appointmentType": appointment_type_uuid,
@@ -127,20 +140,74 @@ class OpenMRSClient:
             "requestedOn": requested_on,
             "notes": notes,
         }
+
         if min_timeframe_value is not None and min_timeframe_units:
             payload["minTimeFrameValue"] = min_timeframe_value
             payload["minTimeFrameUnits"] = min_timeframe_units
+
         if max_timeframe_value is not None and max_timeframe_units:
             payload["maxTimeFrameValue"] = max_timeframe_value
             payload["maxTimeFrameUnits"] = max_timeframe_units
-        return self._request("POST", url, json=payload).json()
-    
-    def get_appointment_requests_for_patient(self, patient_uuid):
-        url = f"{BASE_URL}/ws/rest/v1/appointmentscheduling/appointmentrequest"
-        response = self._request("GET", url, params={"v": "full"})
-        all_requests = response.json().get("results", [])
-        return [r for r in all_requests if r.get("patient", {}).get("uuid") == patient_uuid]
 
+        response = self._request("POST", url, json=payload)
+
+        return response.json()
+
+    def get_appointment_requests_for_patient(self, patient_uuid, max_pages=10):
+        url = f"{BASE_URL}/ws/rest/v1/appointmentscheduling/appointmentrequest"
+        params = {"v": "full"}
+
+        all_requests = []
+        pages = 0
+
+        while url and pages < max_pages:
+            response = self._request(
+                "GET",
+                url,
+                params=params if pages == 0 else None,
+            )
+
+            data = response.json()
+
+            all_requests.extend(data.get("results", []))
+
+            next_link = next(
+                (
+                    link.get("uri")
+                    for link in data.get("links", [])
+                    if link.get("rel") == "next"
+                ),
+                None,
+            )
+
+            # Security: never follow a pagination URL outside the configured host
+            if next_link and not next_link.startswith(BASE_URL):
+                logger.warning(
+                    "Ignoring OpenMRS pagination link outside BASE_URL: %s",
+                    next_link,
+                )
+                break
+
+            url = next_link
+            params = None
+            pages += 1
+
+        patient_requests = [
+            r for r in all_requests
+            if r.get("patient", {}).get("uuid") == patient_uuid
+        ]
+
+        logger.info(
+            "Retrieved %d appointment requests across %d page(s); "
+            "%d belong to patient %s",
+            len(all_requests),
+            pages,
+            len(patient_requests),
+            patient_uuid,
+        )
+
+        return patient_requests
+        
     def cancel_appointment_request(self, request_uuid):
         url = f"{BASE_URL}/ws/rest/v1/appointmentscheduling/appointmentrequest/{request_uuid}"
         return self._request("POST", url, json={"status": "CANCELLED"}).json()

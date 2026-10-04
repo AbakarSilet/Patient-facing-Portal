@@ -179,6 +179,11 @@ def cancel_appointment_request(request, request_uuid):
     # on vérifie qu'il appartient au patient authentifié avant d'agir.
     matching = next((r for r in own_requests if r["uuid"] == request_uuid), None)
     if matching is None:
+        AuditLogEntry.objects.create(
+            user=request.user, action_type=AuditLogEntry.ActionType.CANCEL_APPOINTMENT_REQUEST,
+            target_reference=request_uuid, ip_address=get_client_ip(request),
+            status=AuditLogEntry.Status.FAILURE,
+        )
         raise PermissionDenied
     if matching.get("status") != "PENDING":
         return redirect(f"{reverse('my_appointment_requests')}?error=not_pending")

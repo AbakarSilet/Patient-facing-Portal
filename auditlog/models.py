@@ -8,6 +8,7 @@ class AuditLogEntry(models.Model):
     class ActionType(models.TextChoices):
         LOGIN = "LOGIN", "Login"
         LOGIN_FAILED = "LOGIN_FAILED", "Failed login attempt"
+        OTP_VERIFICATION_FAILED = "OTP_VERIFICATION_FAILED", "Failed OTP verification"
         VIEW_RECORD = "VIEW_RECORD", "Viewed health record"
         REQUEST_APPOINTMENT = "REQUEST_APPOINTMENT", "Requested appointment"
         ACCOUNT_LINKED = "ACCOUNT_LINKED", "Account linked to OpenMRS patient"
@@ -45,11 +46,7 @@ class AuditLogEntry(models.Model):
         SUCCESS = "SUCCESS", "Success"
         FAILURE = "FAILURE", "Failure"
 
-    # CASCADE -> PROTECT : supprimer un compte ne doit jamais supprimer
-    # silencieusement son propre historique d'audit.
-    # null=True : nécessaire pour ce correctif — les événements
-    # pré-compte (échec identité, OTP envoyé/raté) n'ont pas encore
-    # d'utilisateur à qui les rattacher.
+
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
     )
